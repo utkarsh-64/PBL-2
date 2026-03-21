@@ -1,0 +1,2 @@
+# Additional requirements for external resource search functionality
+requests>=2.31.0
