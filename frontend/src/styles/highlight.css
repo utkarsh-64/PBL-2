@@ -1,0 +1,156 @@
+/* Simple Blue Button Highlighting System - Same Class Names */
+
+.highlight-pulse {
+  position: relative !important;
+  z-index: 10 !important;
+  transition: all 0.3s ease-in-out !important;
+  overflow: visible !important;
+}
+
+.highlight-pulse:before {
+  content: '' !important;
+  background: linear-gradient(45deg, #3b82f6, #1d4ed8, #2563eb, #1e40af, #3b82f6) !important;
+  position: absolute !important;
+  top: -3px !important;
+  left: -3px !important;
+  background-size: 400% !important;
+  z-index: -1 !important;
+  filter: blur(8px) !important;
+  width: calc(100% + 6px) !important;
+  height: calc(100% + 6px) !important;
+  animation: highlightRipple 3s linear infinite !important;
+  opacity: 0.8 !important;
+  border-radius: inherit !important;
+}
+
+.highlight-pulse:after {
+  z-index: -1 !important;
+  content: '' !important;
+  position: absolute !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: inherit !important;
+  left: 0 !important;
+  top: 0 !important;
+  border-radius: inherit !important;
+}
+
+.highlight-pulse:hover:before {
+  opacity: 1 !important;
+  filter: blur(12px) !important;
+}
+
+.highlight-pulse:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4) !important;
+}
+
+.highlight-glow {
+  position: relative !important;
+  animation: highlightGlow 2s infinite ease-in-out !important;
+  box-shadow: 
+    0 0 10px rgba(59, 130, 246, 0.5),
+    0 0 20px rgba(59, 130, 246, 0.3),
+    0 0 30px rgba(59, 130, 246, 0.2) !important;
+  border: 2px solid rgba(59, 130, 246, 0.6) !important;
+  z-index: 10 !important;
+}
+
+.highlight-bounce {
+  position: relative !important;
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 
+    0 0 15px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  animation: highlightBounce 2s infinite ease-in-out !important;
+  z-index: 10 !important;
+}
+
+/* Utility classes for different highlight types */
+.highlight-primary {
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3) !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+.highlight-success {
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3) !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+.highlight-warning {
+  border: 2px solid #f59e0b !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.3) !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Keyframe Animations */
+@keyframes highlightRipple {
+  0% { 
+    background-position: 0 0; 
+  }
+  50% { 
+    background-position: 400% 0; 
+  }
+  100% { 
+    background-position: 0 0; 
+  }
+}
+
+@keyframes highlightGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 10px rgba(59, 130, 246, 0.5),
+      0 0 20px rgba(59, 130, 246, 0.3),
+      0 0 30px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 15px rgba(59, 130, 246, 0.7),
+      0 0 30px rgba(59, 130, 246, 0.5),
+      0 0 45px rgba(59, 130, 246, 0.3);
+  }
+}
+
+@keyframes highlightBounce {
+  0%, 100% {
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: 
+      0 0 15px rgba(59, 130, 246, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    border-color: rgba(59, 130, 246, 0.9);
+    box-shadow: 
+      0 0 25px rgba(59, 130, 246, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .highlight-pulse:before {
+    filter: blur(6px) !important;
+  }
+  
+  .highlight-pulse:hover:before {
+    filter: blur(8px) !important;
+  }
+}
+
+/* Accessibility - respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .highlight-pulse:before,
+  .highlight-glow,
+  .highlight-bounce {
+    animation: none !important;
+  }
+  
+  .highlight-pulse:before {
+    opacity: 0.6 !important;
+  }
+}

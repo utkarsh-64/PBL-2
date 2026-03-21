@@ -1,0 +1,139 @@
+{
+  "title": "Complete Guide to Pension Planning & Retirement",
+  "description": "Master the art of retirement planning with comprehensive strategies, schemes, and real-world applications",
+  "totalModules": 8,
+  "estimatedTime": "12-15 hours",
+  "difficulty": "Beginner to Advanced",
+  "modules": [
+    {
+      "id": 1,
+      "title": "Retirement Planning Fundamentals",
+      "description": "Understanding the basics of retirement planning and why it's crucial",
+      "duration": "2 hours",
+      "topics": [
+        {
+          "id": 1,
+          "title": "Why Retirement Planning Matters",
+          "type": "article",
+          "duration": "15 min",
+          "content": "Understanding the importance of early retirement planning...",
+          "isCompleted": false
+        },
+        {
+          "id": 2,
+          "title": "The Power of Compound Interest",
+          "type": "video",
+          "duration": "5 min",
+          "videoId": "svbkVpeuwE4",
+          "isCompleted": false
+        },
+        {
+          "id": 3,
+          "title": "Retirement Planning Calculator",
+          "type": "interactive",
+          "duration": "10 min",
+          "isCompleted": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Government Pension Schemes",
+      "description": "Explore various government-backed pension options",
+      "duration": "2.5 hours",
+      "topics": [
+        {
+          "id": 4,
+          "title": "Social Security Benefits Overview",
+          "type": "article",
+          "duration": "25 min",
+          "isCompleted": false
+        },
+        {
+          "id": 5,
+          "title": "NPS Plans Explained",
+          "type": "video",
+          "duration": "9 min",
+          "videoId": "sIDjCkwRBls",
+          "isCompleted": false
+        },
+        {
+          "id": 6,
+          "title": "State Pension Schemes Comparison",
+          "type": "infographic",
+          "duration": "15 min",
+          "isCompleted": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Private Pension Plans",
+      "description": "Understanding employer-sponsored and individual retirement accounts",
+      "duration": "3 hours",
+      "topics": [
+        {
+          "id": 7,
+          "title": "Employee Pension Scheme?",
+          "type": "article",
+          "duration": "20 min",
+          "isCompleted": false
+        },
+        {
+          "id": 8,
+          "title": "Best Private Pension Plans",
+          "type": "video",
+          "duration": "5 min",
+          "videoId": "QGES0q2yBwM",
+          "isCompleted": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Investment Strategies for Retirement",
+      "description": "Building a diversified portfolio for long-term growth",
+      "duration": "2.5 hours",
+      "topics": [
+        {
+          "id": 9,
+          "title": "Asset Allocation by Age",
+          "type": "article",
+          "duration": "30 min",
+          "isCompleted": false
+        },
+        {
+          "id": 10,
+          "title": "Risk Management in Retirement Planning",
+          "type": "video",
+          "duration": "33 min",
+          "videoId": "qCSyQ5eXP0o",
+          "isCompleted": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Tax Optimization Strategies",
+      "description": "Minimize taxes on your retirement savings and withdrawals",
+      "duration": "2 hours",
+      "topics": [
+        {
+          "id": 11,
+          "title": "Tax-Deferred vs Tax-Free Accounts",
+          "type": "article",
+          "duration": "25 min",
+          "isCompleted": false
+        },
+        {
+          "id": 12,
+          "title": "Withdrawal Strategies to Minimize Taxes",
+          "type": "video",
+          "duration": "5 min",
+          "videoId": "3v9hFUq4of0",
+          "isCompleted": false
+        }
+      ]
+    }
+  ]
+}
