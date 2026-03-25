@@ -19,6 +19,7 @@ class UserData(models.Model):
         ("widowed", "Widowed"),
     ]
     maritalStatus = models.CharField(max_length=20, choices=MARITAL_CHOICES, blank=True, null=True)
+    spouseName = models.CharField(max_length=255, blank=True, null=True)
     numberOfDependants = models.PositiveIntegerField(default=0)
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
@@ -32,12 +33,13 @@ class IncomeStatus(models.Model):
     currentSalary = models.DecimalField(max_digits=12, decimal_places=2)
     yearsOfService = models.IntegerField()
     employerType = models.CharField(max_length=100)
+    company = models.CharField(max_length=255, blank=True, null=True)
     pensionScheme = models.CharField(max_length=100)
     pensionBalance = models.DecimalField(max_digits=15, decimal_places=2)
     employerContribution = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     yourContribution = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     def __str__(self):
-        return f"{self.user.username} - {self.employerType} - {self.currentSalary}"
+        return f"{self.user.username} - {self.employerType} at {self.company}"
 
 
 class RetirementInfo(models.Model):

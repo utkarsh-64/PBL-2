@@ -262,22 +262,52 @@ def list_retirement_info(request):
 @permission_classes([IsAuthenticated])
 def add_user_data(request):
     """
-    Save or update user personal details
+    Save or update user personal details, employment status, and retirement info simultaneously
     """
     try:
-        # Fetch existing UserData for this user (if any)
-        instance = UserData.objects.filter(user=request.user).first()
+        data = request.data
+        user = request.user
+        
+        # 1. UserData (Personal)
+        user_data, _ = UserData.objects.get_or_create(user=user)
+        ud_serializer = UserDataSerializer(user_data, data=data, partial=True)
+        if ud_serializer.is_valid():
+            ud_serializer.save()
+            
+        # 2. IncomeStatus (Employment)
+        income_status, _ = IncomeStatus.objects.get_or_create(
+            user=user, 
+            defaults={
+                'currentSalary': 0, 'yearsOfService': 0, 
+                'employerType': '', 'pensionScheme': '',
+                'pensionBalance': 0
+            }
+        )
+        is_serializer = IncomeStatusSerializer(income_status, data=data, partial=True)
+        if is_serializer.is_valid():
+            is_serializer.save()
+            
+        # 3. RetirementInfo (Retirement)
+        ret_info, _ = RetirementInfo.objects.get_or_create(
+            user=user,
+            defaults={
+                'plannedRetirementAge': 60, 'retirementLifestyle': 'comfortable',
+                'monthlyRetirementExpense': 0, 'legacyGoal': 'moderate'
+            }
+        )
+        ri_serializer = RetirementInfoSerializer(ret_info, data=data, partial=True)
+        if ri_serializer.is_valid():
+            ri_serializer.save()
 
-        # Pass instance for update, or create if not exists
-        serializer = UserDataSerializer(instance, data=request.data, partial=True)
+        # Combine results to send back
+        res_data = ud_serializer.data.copy()
+        res_data.update(is_serializer.data)
+        res_data.update(ri_serializer.data)
 
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(
-                {"message": "User data saved successfully!", "data": serializer.data},
-                status=status.HTTP_201_CREATED if not instance else status.HTTP_200_OK,
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"message": "Profile saved successfully!", "data": res_data},
+            status=status.HTTP_200_OK,
+        )
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -287,16 +317,29 @@ def add_user_data(request):
 @permission_classes([IsAuthenticated])
 def get_user_data(request):
     """
-    Get personal details of logged-in user
+    Get merged details of logged-in user (Personal, Employment, Retirement)
     """
     try:
-        instance = UserData.objects.filter(user=request.user).first()
-        if not instance:
-            return Response(
-                {"message": "No user data found"}, status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = UserDataSerializer(instance)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        user = request.user
+        data = {}
+        
+        user_data = UserData.objects.filter(user=user).first()
+        if user_data:
+            data.update(UserDataSerializer(user_data).data)
+            
+        income_status = IncomeStatus.objects.filter(user=user).first()
+        if income_status:
+            data.update(IncomeStatusSerializer(income_status).data)
+            
+        ret_info = RetirementInfo.objects.filter(user=user).first()
+        if ret_info:
+            data.update(RetirementInfoSerializer(ret_info).data)
+            
+        if not data:
+            # Return an empty dict if brand new user, frontend handles it.
+            return Response(data, status=status.HTTP_200_OK)
+            
+        return Response(data, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -19,10 +19,13 @@ from chatbot.prompts import (
     INTERPRETER_USER_REQUEST,
     EXTRACT_USER_INFO_PROMPT,
     SEARCH_QUERY_GENERATOR_PROMPT,
+    CHART_INSIGHT_PROMPT,
+    BUCKET_ADVISORY_PROMPT,
+    FINSCOPE_ADVISOR_PROMPT,
 )
 from chatbot.utils.text_utils import extract_json_from_text
 
-from config import GOOGLE_API_KEY
+from config import GOOGLE_API_KEY, GROQ_API_KEY
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,6 +42,7 @@ class ChatBot:
         self.index_name = os.getenv("PINECONE_INDEX_NAME", "pension-chatbot")
 
         # Initialize Pinecone client
+        self.index = None  # will be set by _initialize_pinecone_index if key is present
         if self.pinecone_api_key:
             self.pc = Pinecone(api_key=self.pinecone_api_key)
             self._initialize_pinecone_index()
@@ -91,20 +95,18 @@ class ChatBot:
     def _initialize_pinecone_index(self):
         """Initialize Pinecone index if it doesn't exist."""
         try:
-            # Check if index exists
             existing_indexes = [index.name for index in self.pc.list_indexes()]
 
             if self.index_name not in existing_indexes:
-                # Create index with appropriate dimensions for Google embeddings
+                # 1024 dimensions to match gemini-embedding-2-preview output
                 self.pc.create_index(
                     name=self.index_name,
-                    dimension=768,  # Google text-embedding-004 dimension
+                    dimension=1024,
                     metric="cosine",
                     spec=ServerlessSpec(cloud="aws", region=self.pinecone_environment),
                 )
-                print(f"Created Pinecone index: {self.index_name}")
+                print(f"Created Pinecone index: {self.index_name} (dim=1024)")
 
-            # Connect to the index
             self.index = self.pc.Index(self.index_name)
         except Exception as e:
             print(f"Error initializing Pinecone index: {e}")
@@ -172,6 +174,205 @@ class ChatBot:
             ),
         )
         return response.text or ""
+
+    def _groq_generate(self, prompt: str, temperature: float = 0.6) -> str:
+        """
+        Generate text using the Groq REST API with llama-3.3-70b-versatile.
+        This is a fast, free-tier model used for chart insights and advisory.
+        """
+        if not GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY is not set in .env")
+
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature,
+            "max_tokens": 2048,
+        }
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+
+    def get_chart_insight(self, chart_type: str, chart_data: str) -> str:
+        """
+        Returns a plain-English explanation of a chart for the given user.
+        Uses Groq (fast, free) so it feels near-instant in the UI.
+        """
+        try:
+            basic_data = None
+            income_data = None
+            retirement_data = None
+            try:
+                from users.models import UserData, IncomeStatus, RetirementInfo
+                basic_data = UserData.objects.filter(user_id=self.user_id).first()
+                income_data = IncomeStatus.objects.filter(user_id=self.user_id).first()
+                retirement_data = RetirementInfo.objects.filter(user_id=self.user_id).first()
+            except Exception:
+                pass
+
+            age = getattr(basic_data, "dateOfBirth", "Unknown") or "Unknown"
+            retirement_age = getattr(retirement_data, "plannedRetirementAge", 60) or 60
+            monthly_expense = getattr(retirement_data, "monthlyRetirementExpense", 50000) or 50000
+            risk_profile = "Moderate"  # default; can be extended
+
+            prompt = CHART_INSIGHT_PROMPT.format(
+                chart_type=chart_type,
+                chart_data=chart_data,
+                age=age,
+                retirement_age=retirement_age,
+                monthly_expense=monthly_expense,
+                risk_profile=risk_profile,
+            )
+            return self._groq_generate(prompt, temperature=0.5)
+        except Exception as e:
+            print(f"Error in get_chart_insight: {e}")
+            return "Unable to generate chart insight at this time. Please try again."
+
+    def get_bucket_advisory(self, corpus: float, risk_profile: str, selected_scenario: str) -> dict:
+        """
+        Returns a 3-bucket investment advisory plan for the user.
+        Uses Groq (fast, free) so it feels near-instant in the UI.
+        Pre-calculates all bucket amounts in Python to avoid LLM arithmetic errors.
+        """
+        try:
+            basic_data = None
+            retirement_data = None
+            try:
+                from users.models import UserData, RetirementInfo
+                basic_data = UserData.objects.filter(user_id=self.user_id).first()
+                retirement_data = RetirementInfo.objects.filter(user_id=self.user_id).first()
+            except Exception:
+                pass
+
+            age = getattr(basic_data, "dateOfBirth", "Unknown") or "Unknown"
+            retirement_age = getattr(retirement_data, "plannedRetirementAge", 60) or 60
+            monthly_expense = getattr(retirement_data, "monthlyRetirementExpense", 50000) or 50000
+
+            # ── Determine allocation splits based on risk profile ──────────────
+            profile_lower = (risk_profile or "").lower()
+            if profile_lower == "aggressive":
+                b1_pct, b2_pct, b3_pct = 15, 30, 55
+            elif profile_lower == "conservative":
+                b1_pct, b2_pct, b3_pct = 35, 45, 20
+            else:  # Moderate (default)
+                b1_pct, b2_pct, b3_pct = 25, 40, 35
+
+            def fmt_amount(amount_inr: float) -> str:
+                """Format a rupee amount as Lakhs or Crores."""
+                if amount_inr >= 1_00_00_000:  # 1 Crore
+                    cr = amount_inr / 1_00_00_000
+                    return f"₹{cr:.2f} Cr"
+                else:
+                    lakh = amount_inr / 1_00_000
+                    return f"₹{lakh:.1f} L"
+
+            b1_amount = corpus * b1_pct / 100
+            b2_amount = corpus * b2_pct / 100
+            b3_amount = corpus * b3_pct / 100
+            corpus_cr = corpus / 1_00_00_000
+
+            prompt = BUCKET_ADVISORY_PROMPT.format(
+                age=age,
+                retirement_age=retirement_age,
+                corpus=f"{corpus:,.0f}",
+                corpus_cr=f"{corpus_cr:.2f}",
+                risk_profile=risk_profile,
+                monthly_expense=f"{monthly_expense:,.0f}",
+                selected_scenario=selected_scenario,
+                bucket1_pct=b1_pct,
+                bucket2_pct=b2_pct,
+                bucket3_pct=b3_pct,
+                bucket1_amount=fmt_amount(b1_amount),
+                bucket2_amount=fmt_amount(b2_amount),
+                bucket3_amount=fmt_amount(b3_amount),
+            )
+            raw = self._groq_generate(prompt, temperature=0.4)
+            advisory = extract_json_from_text(raw)
+            if advisory:
+                return advisory
+            return {"error": "Could not parse advisory. Please try again."}
+        except Exception as e:
+            print(f"Error in get_bucket_advisory: {e}")
+            return {"error": str(e)}
+
+    def get_financial_answer(
+        self,
+        user_message: str,
+        scenarios: list,
+        graph_context: str,
+        chat_history: list,
+    ) -> dict:
+        """
+        Answers a user's freeform question about their retirement plan.
+        Uses Groq for fast, sub-second responses.
+        
+        Returns a dictionary containing 'answer', 'trigger', and potential 'data'.
+        """
+        try:
+            # ── Format scenarios into readable text ─────────────────────────
+            if scenarios:
+                scenario_lines = []
+                for s in scenarios:
+                    line = (
+                        f"- {s.get('name', 'Scenario')}: "
+                        f"Monthly Income ₹{s.get('monthlyIncome', 0):,.0f}, "
+                        f"Tax Impact ₹{s.get('taxImplication', 0):,.0f}, "
+                        f"Suitability {s.get('suitability', 0)}%, "
+                        f"Risk: {s.get('riskLevel', 'Unknown')}, "
+                        f"Description: {s.get('description', '')}"
+                    )
+                    scenario_lines.append(line)
+                scenarios_context = "\n".join(scenario_lines)
+            else:
+                scenarios_context = "No scenarios have been generated yet."
+
+            # ── Format chat history ─────────────────────────────────────────
+            MAX_HISTORY = 10  # Increased for better follow-up context
+            recent_history = chat_history[-MAX_HISTORY:] if chat_history else []
+            history_lines = []
+            for msg in recent_history:
+                role = "User" if msg.get("type") == "user" else "FinScope AI"
+                content = str(msg.get("content", ""))[:300]
+                history_lines.append(f"{role}: {content}")
+            history_text = "\n".join(history_lines) if history_lines else "No previous messages."
+
+            prompt = FINSCOPE_ADVISOR_PROMPT.format(
+                scenarios_context=scenarios_context,
+                graph_context=graph_context or "No specific graph context provided.",
+                chat_history=history_text,
+                history_count=len(recent_history),
+                user_message=user_message,
+            )
+
+            raw_response = self._groq_generate(prompt, temperature=0.5)
+            
+            # Extract JSON from the advisor's response
+            data = extract_json_from_text(raw_response)
+            
+            if data and "answer" in data:
+                return {
+                    "answer": data["answer"],
+                    "trigger": data.get("trigger", "none"),
+                    "data": data.get("data", {})
+                }
+            
+            # Fallback if AI didn't return valid JSON
+            return {
+                "answer": raw_response,
+                "trigger": "none"
+            }
+
+        except Exception as e:
+            print(f"Error in get_financial_answer: {e}")
+            return {
+                "answer": "I'm sorry, I couldn't process your question right now. Please try again.",
+                "trigger": "none"
+            }
 
     def _answer_user_query(
         self, user_message: str, file=None, max_history_messages=10
@@ -255,7 +456,19 @@ class ChatBot:
         )
 
         try:
-            return self._llm_generate(prompt, temperature=0.6)
+            raw_response = self._llm_generate(prompt, temperature=0.6)
+            # Try to extract JSON for potential chart components
+            component_data = extract_json_from_text(raw_response)
+            if component_data and "component" in component_data:
+                # If bot_reply is not there, use raw_response or cleaned up text
+                if "bot_reply" not in component_data:
+                    # Remove the JSON part from raw response to get the text explanation
+                    text_only = re.sub(r'```(?:json)?.*?```', '', raw_response, flags=re.DOTALL).strip()
+                    if not text_only:
+                        text_only = "Here is the visualization you requested:"
+                    component_data["bot_reply"] = text_only
+                return component_data
+            return raw_response
         except Exception as e:
             print("An error occurred while generating a response: ", e)
             return "An error occurred while generating a response"
@@ -336,8 +549,8 @@ class ChatBot:
 
     def _process_pdf_file(self, file) -> Optional[str]:
         """
-        Process PDF file: extract text and store chunks in memory for context retrieval.
-        Uses simple in-memory storage instead of Pinecone for broad compatibility.
+        Process PDF file: extract text, embed each chunk using gemini-embedding-2-preview,
+        and upsert the vectors into Pinecone under this user's namespace.
 
         Args:
             file: The uploaded PDF file
@@ -345,80 +558,131 @@ class ChatBot:
         Returns:
             Success message or None if failed
         """
-        try:
-            # Save uploaded file temporarily
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-                for chunk in file.chunks():
-                    temp_file.write(chunk)
-                temp_file_path = temp_file.name
+        if not self.index:
+            print("Pinecone index not available; cannot store PDF vectors.")
+            return None
 
-            # Load and process PDF
+        temp_file_path = None
+        try:
+            # 1. Save uploaded file to a temp location
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                for chunk in file.chunks():
+                    tmp.write(chunk)
+                temp_file_path = tmp.name
+
+            # 2. Load and split the PDF into chunks
             loader = PyPDFLoader(temp_file_path)
             documents = loader.load()
-
-            # Split documents into chunks and store in-memory
             chunks = self.text_splitter.split_documents(documents)
-
-            # Store chunks in memory on this ChatBot instance
-            self._doc_chunks = [
-                {
-                    "content": chunk.page_content,
-                    "source": getattr(file, "name", "uploaded_pdf"),
-                    "page": chunk.metadata.get("page", 0),
-                }
-                for chunk in chunks
-            ]
-
-            # Clean up temporary file
             os.unlink(temp_file_path)
+            temp_file_path = None
 
-            return f"Processed {len(chunks)} chunks from PDF and ready for questions."
+            if not chunks:
+                return None
+
+            # 3. Embed each chunk and build Pinecone vectors
+            file_name = getattr(file, "name", "uploaded_pdf")
+            vectors = []
+            for i, chunk in enumerate(chunks):
+                text = chunk.page_content
+                try:
+                    embedding = self.embeddings.embed_query(text)
+                except Exception as embed_err:
+                    print(f"Embedding failed for chunk {i}: {embed_err}")
+                    continue
+
+                vector_id = f"user_{self.user_id}_{uuid.uuid4().hex}"
+                vectors.append({
+                    "id": vector_id,
+                    "values": embedding,
+                    "metadata": {
+                        "text": text,
+                        "source": file_name,
+                        "page": chunk.metadata.get("page", 0),
+                        "user_id": self.user_id,
+                    },
+                })
+
+            if not vectors:
+                return None
+
+            # 4. Upsert in batches of 100 under a per-user namespace
+            namespace = f"user_{self.user_id}"
+            batch_size = 100
+            for start in range(0, len(vectors), batch_size):
+                self.index.upsert(
+                    vectors=vectors[start:start + batch_size],
+                    namespace=namespace,
+                )
+
+            print(f"Upserted {len(vectors)} vectors into Pinecone namespace '{namespace}'")
+            return f"Processed and indexed {len(chunks)} chunks from '{file_name}' into Pinecone."
 
         except Exception as e:
             print(f"Error processing PDF file: {e}")
-            try:
-                if "temp_file_path" in locals():
+            if temp_file_path:
+                try:
                     os.unlink(temp_file_path)
-            except (OSError, FileNotFoundError):
-                pass
+                except (OSError, FileNotFoundError):
+                    pass
             return None
 
     def _get_rag_context(self, query: str, top_k: int = 5) -> str:
         """
-        Retrieve relevant context from in-memory document chunks using keyword matching.
+        Retrieve relevant context from Pinecone using semantic vector similarity.
+
+        Embeds the user query with gemini-embedding-2-preview, performs a
+        cosine-similarity search in the user's Pinecone namespace, and returns
+        the top matching document chunks as a formatted string.
 
         Args:
             query: The user's query
             top_k: Number of top chunks to retrieve
 
         Returns:
-            Formatted context string from retrieved documents
+            Formatted context string from retrieved documents, or empty string
+            if nothing relevant is found.
         """
-        chunks = getattr(self, "_doc_chunks", None)
-        if not chunks:
+        if not self.index:
             return ""
 
         try:
-            # Simple keyword relevance scoring
-            query_words = set(query.lower().split())
-            scored = []
-            for chunk in chunks:
-                content_lower = chunk["content"].lower()
-                score = sum(1 for w in query_words if w in content_lower)
-                scored.append((score, chunk))
+            # 1. Embed the query
+            query_embedding = self.embeddings.embed_query(query)
 
-            # Sort by score descending, take top_k
-            scored.sort(key=lambda x: x[0], reverse=True)
-            top_chunks = [c for _, c in scored[:top_k] if _ > 0] or [c for _, c in scored[:3]]
+            # 2. Search Pinecone in this user's namespace
+            namespace = f"user_{self.user_id}"
+            results = self.index.query(
+                vector=query_embedding,
+                top_k=top_k,
+                namespace=namespace,
+                include_metadata=True,
+            )
 
-            context_parts = [
-                f"From {c['source']} (Page {c['page']}):\n{c['content']}"
-                for c in top_chunks
-            ]
+            # Pinecone SDK returns an object with a .matches attribute
+            matches = getattr(results, "matches", []) or []
+            if not matches:
+                return ""
+
+            # 3. Filter by a minimum relevance score and format output
+            MIN_SCORE = 0.30  # cosine similarity threshold
+            context_parts = []
+            for match in matches:
+                score = getattr(match, "score", 0) or 0
+                if score < MIN_SCORE:
+                    continue
+                meta = getattr(match, "metadata", {}) or {}
+                text = meta.get("text", "")
+                source = meta.get("source", "document")
+                page = meta.get("page", 0)
+                context_parts.append(
+                    f"From {source} (Page {page}, relevance {score:.2f}):\n{text}"
+                )
+
             return "\n\n".join(context_parts)
 
         except Exception as e:
-            print(f"Error retrieving RAG context: {e}")
+            print(f"Error retrieving RAG context from Pinecone: {e}")
             return ""
 
     def _extract_user_info_from_pdf(self, file) -> str:
