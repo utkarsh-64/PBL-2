@@ -1,11 +1,29 @@
 from django.db import models
 from django.contrib.auth.models import User
+from financial_data.encryption import encrypt_token, decrypt_token
 
 
 class ZerodhaUser(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='zerodha_user')
-    access_token = models.TextField()
-    refresh_token = models.TextField(blank=True, null=True)
+    # Stored encrypted; use the property accessors below instead of these fields directly
+    _access_token = models.TextField(db_column='access_token')
+    _refresh_token = models.TextField(blank=True, null=True, db_column='refresh_token')
+
+    @property
+    def access_token(self) -> str:
+        return decrypt_token(self._access_token)
+
+    @access_token.setter
+    def access_token(self, value: str):
+        self._access_token = encrypt_token(value)
+
+    @property
+    def refresh_token(self):
+        return decrypt_token(self._refresh_token) if self._refresh_token else None
+
+    @refresh_token.setter
+    def refresh_token(self, value):
+        self._refresh_token = encrypt_token(value) if value else None
     api_key = models.CharField(max_length=100)
     zerodha_user_id = models.CharField(max_length=100, blank=True, null=True)
     user_name = models.CharField(max_length=255, blank=True, null=True)
