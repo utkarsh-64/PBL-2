@@ -22,17 +22,47 @@ function AppRoutes() {
   const { user } = useAuth();
   const dispatch = useDispatch();
 
-  const [scenarios, setScenarios] = useState([]);
-  const [messages, setMessages] = useState([
+  const initialMessages = [
     {
       id: 1,
       type: "bot",
       content:
-        "Hello! I'm your FinScope AI assistant. I'm here to help you optimize your pension and retirement benefits. Let's start by getting to know you better.",
-      timestamp: new Date(),
+        "Hello! I'm your WealthWise AI assistant. I'm here to help you optimize your pension and retirement benefits. Let's start by getting to know you better.",
+      timestamp: new Date().toISOString(),
       component: "welcome",
     },
-  ]);
+  ];
+
+  const [scenarios, setScenarios] = useState([]);
+  const [messages, setMessages] = useState(initialMessages);
+
+  // Use the user's unique identifier (id or email) to key the local storage
+  const userKey = user?.id || user?.email || 'guest';
+
+  // Load chat data when the user changes
+  useEffect(() => {
+    if (userKey) {
+      const savedScenarios = localStorage.getItem(`chat_scenarios_${userKey}`);
+      const savedHistory = localStorage.getItem(`chat_history_${userKey}`);
+      
+      setScenarios(savedScenarios ? JSON.parse(savedScenarios) : []);
+      setMessages(savedHistory ? JSON.parse(savedHistory) : initialMessages);
+    }
+  }, [userKey]);
+
+  // Persist scenarios when they change
+  useEffect(() => {
+    if (userKey && userKey !== 'guest') {
+      localStorage.setItem(`chat_scenarios_${userKey}`, JSON.stringify(scenarios));
+    }
+  }, [scenarios, userKey]);
+
+  // Persist messages when they change
+  useEffect(() => {
+    if (userKey && userKey !== 'guest') {
+      localStorage.setItem(`chat_history_${userKey}`, JSON.stringify(messages));
+    }
+  }, [messages, userKey]);
   const location = useLocation();
 
   // Update userData when user is available

@@ -42,6 +42,7 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
     loading: false,
     error: null,
   });
+  const [zerodhaUserId, setZerodhaUserId] = useState("");
 
   // Check Zerodha connection status on component mount
   useEffect(() => {
@@ -76,8 +77,8 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
       setZerodhaStatus({ loading: true, error: null });
       
       // Store the current URL to redirect back after login
-      const currentUrl = window.location.pathname + window.location.search;
-      const loginUrl = await zerodhaService.getLoginUrl(currentUrl);
+      const currentUrl = window.location.pathname + window.location.hash;
+      const loginUrl = await zerodhaService.getLoginUrl(currentUrl, zerodhaUserId);
       
       // Calculate popup position to be centered
       const width = 600;
@@ -378,15 +379,27 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
                     </ul>
                   </div>
 
-                  <button
-                    onClick={handleZerodhaConnect}
-                    disabled={zerodhaStatus.loading}
-                    className="w-full btn-primary disabled:opacity-50"
-                  >
-                    {zerodhaStatus.loading
-                      ? "Connecting to Zerodha..."
-                      : "Login with Zerodha"}
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      placeholder="Enter Kite User ID"
+                      value={zerodhaUserId}
+                      onChange={(e) => setZerodhaUserId(e.target.value.toUpperCase())}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary shadow-sm uppercase placeholder:normal-case font-medium text-slate-700"
+                      disabled={zerodhaStatus.loading}
+                    />
+                    <button
+                      onClick={handleZerodhaConnect}
+                      disabled={zerodhaStatus.loading || !zerodhaUserId}
+                      className="btn-primary flex items-center justify-center space-x-2 px-6 py-3 disabled:opacity-50"
+                    >
+                      {zerodhaStatus.loading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        "Connect Kite"
+                      )}
+                    </button>
+                  </div>
 
                   {zerodhaStatus.error && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">

@@ -10,6 +10,7 @@ import RecommendationComponent from "./chat/RecommendationComponent";
 import QuickActionsComponent from "./chat/QuickActionsComponent";
 import DemoComponent from "./chat/DemoComponent";
 import LifeExpectancyFormComponent from "./chat/LifeExpectancyFormComponent";
+import ChatChartComponent from "./chat/ChatChartComponent";
 import ExternalResources from "./ExternalResources";
 import Markdown from "react-markdown";
 
@@ -60,6 +61,9 @@ const ChatMessage = ({
         return <QuickActionsComponent onAction={onFormSubmit} />;
       case "demo":
         return <DemoComponent onAction={onFormSubmit} />;
+      case "chart-retirement":
+      case "payout-comparison":
+        return <ChatChartComponent type={message.component} data={message.data} />;
       default:
         return null;
     }
@@ -138,7 +142,7 @@ const ChatMessage = ({
         <div
           className={`text-xs text-gray-500 mt-1 ${isBot ? "" : "text-right"}`}
         >
-          {message.timestamp.toLocaleTimeString([], {
+          {new Date(message.timestamp).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           })}

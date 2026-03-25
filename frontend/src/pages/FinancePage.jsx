@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { BarChart3, Info, Loader2, TrendingUp, TrendingDown, IndianRupee, Building2, Calendar, X, ExternalLink } from 'lucide-react';
-import stocksData from "../../public/data/stocks_data.json";
-import predictedData from "../../public/data/predicted_price.json";
 import { API_BASE_URL } from '../utils/constants';
 
 // Register ChartJS components
@@ -17,6 +15,8 @@ const FinancePage = () => {
     const [totalInvestedAmount, setTotalInvestedAmount] = useState(0);
     const [selectedStock, setSelectedStock] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [stocksData, setStocksData] = useState({});
+    const [predictedData, setPredictedData] = useState({});
 
     // Fetch user's stock holdings from Zerodha
     const fetchUserStocks = async () => {
@@ -69,10 +69,24 @@ const FinancePage = () => {
         }
     };
 
-    // Backend chart fetching removed; charts now read from local stocks_data.json
-
-    // Load user stocks on component mount
+    // Load local JSON data on component mount
     useEffect(() => {
+        const loadLocalData = async () => {
+            try {
+                const [stocksRes, predictedRes] = await Promise.all([
+                    fetch("/data/stocks_data.json"),
+                    fetch("/data/predicted_price.json")
+                ]);
+                const sData = await stocksRes.json();
+                const pData = await predictedRes.json();
+                setStocksData(sData);
+                setPredictedData(pData);
+            } catch (err) {
+                console.error("Error loading local data:", err);
+            }
+        };
+
+        loadLocalData();
         fetchUserStocks();
     }, []);
 

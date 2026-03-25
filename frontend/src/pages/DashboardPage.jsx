@@ -28,6 +28,8 @@ import {
 } from "../redux/slices/dashboardSlice";
 import InflationPredictionChart from "../components/dashboard/InflationPredictionChart";
 import ChartExplanationIcon from "../components/ChartExplanationIcon";
+import AIInsightCard from "../components/dashboard/AIInsightCard";
+import BucketAdvisory from "../components/dashboard/BucketAdvisory";
 
 ChartJS.register(
   CategoryScale,
@@ -283,14 +285,10 @@ const DashboardPage = () => {
                   (parseInt(userData?.stockInvestmentAmount) || 0) || 500000
                 }
               />
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-blue-200/30">
-                <p className="text-blue-800 text-sm leading-relaxed">
-                  <strong>AI Insight:</strong> Your income peaks around age{" "}
-                  {Math.round(retirementAge * 0.85)}
-                  and transitions to pension income at {retirementAge}. Plan
-                  maximum contributions during peak earning years.
-                </p>
-              </div>
+              <AIInsightCard
+                chartType="Retirement Corpus Projection"
+                chartData={`Current age: ${currentAge}. Planned retirement age: ${retirementAge}. Life expectancy: ${lifeExpectancy} years. Monthly contribution: ₹${monthlyContribution}. Initial savings: ₹${(parseInt(userData?.fixedDepositAmount) || 0) + (parseInt(userData?.mutualFundAmount) || 0) + (parseInt(userData?.stockInvestmentAmount) || 0) || 500000}. Required corpus: ₹${calculations.requiredCorpus} Crores. Required monthly SIP: ₹${calculations.requiredMonthlySIP}.`}
+              />
             </div>
 
             <div className="rounded-3xl shadow-xl p-8 border border-blue-200/50 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] relative">
@@ -305,6 +303,10 @@ const DashboardPage = () => {
                 Inflation-adjusted, compounding analysis in real terms.
               </p>
               <BreakEvenChart />
+              <AIInsightCard
+                chartType="Break Even Analysis: Lump Sum vs Annuity"
+                chartData={`Retirement age: ${retirementAge}. Life expectancy: ${lifeExpectancy} years. Required corpus: ₹${calculations.requiredCorpus} Crores. Monthly pension target: ₹${calculations.monthlyPension}K. Tax bracket: ${taxBracket}%. Years in retirement: ${calculations.retirementYears}.`}
+              />
             </div>
 
             {/* Optimal Retirement Age - Medium Card */}
@@ -317,10 +319,26 @@ const DashboardPage = () => {
                   Payout Comparison
                 </h3>
                 <PayoutComparison corpusValue={calculations.requiredCorpus * 10000000} />
+                <AIInsightCard
+                  chartType="Payout Comparison (Lump Sum vs Annuity vs Phased)"
+                  chartData={`Required corpus: ₹${calculations.requiredCorpus} Crores. Monthly pension target: ₹${calculations.monthlyPension}K. Retirement age: ${retirementAge}. Life expectancy: ${lifeExpectancy} years. Tax bracket: ${taxBracket}%.`}
+                />
               </div>
             </div>
 
-            <InflationPredictionChart />
+            <div className="rounded-3xl shadow-xl p-6 border border-teal-200/50 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <span className="bg-gradient-to-br from-teal-500 to-cyan-600 p-2 rounded-xl mr-3 shadow-lg">
+                  📉
+                </span>
+                Inflation Impact Projection
+              </h3>
+              <InflationPredictionChart />
+              <AIInsightCard
+                chartType="Inflation Impact Projection"
+                chartData={`Current age: ${currentAge}. Retirement age: ${retirementAge}. Inflation rate: ${(inflationRate * 100).toFixed(1)}%. Monthly retirement expense goal: ₹${retirementExpense.toLocaleString('en-IN')}. Life expectancy: ${lifeExpectancy} years. Years in retirement: ${calculations.retirementYears}.`}
+              />
+            </div>
 
             <div className="rounded-3xl shadow-xl p-6 border border-green-200/50 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
               <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -332,12 +350,10 @@ const DashboardPage = () => {
               <div className="mb-4">
                 <RetirementSimulationChart />
               </div>
-              <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-green-200/30">
-                <p className="text-green-800 text-xs leading-relaxed">
-                  <strong>AI:</strong> Age 62 provides maximum lifetime
-                  benefits. Each additional year increases corpus by 12-15%.
-                </p>
-              </div>
+              <AIInsightCard
+                chartType="Optimal Retirement Age Simulation"
+                chartData={`Current age: ${currentAge}. Planned retirement age: ${retirementAge}. Life expectancy: ${lifeExpectancy} years. Monthly contribution: ₹${monthlyContribution.toLocaleString('en-IN')}. Monthly retirement expense: ₹${retirementExpense.toLocaleString('en-IN')}. Required corpus: ₹${calculations.requiredCorpus} Crores. Required monthly SIP: ₹${calculations.requiredMonthlySIP.toLocaleString('en-IN')}.`}
+              />
             </div>
           </div>
 
@@ -412,6 +428,13 @@ const DashboardPage = () => {
               </p>
             </div>
           </div>
+
+          {/* BucketAdvisory — AI investment plan based on the active scenario */}
+          <BucketAdvisory
+            corpus={calculations.requiredCorpus * 10000000}
+            riskProfile={activeScenario === 'aggressive' ? 'Aggressive' : activeScenario === 'conservative' ? 'Conservative' : 'Moderate'}
+            selectedScenario={activeScenario === 'earlyRetirement' ? 'phased' : activeScenario}
+          />
         </div>
       </div>
     </div>

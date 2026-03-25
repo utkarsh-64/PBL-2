@@ -8,6 +8,7 @@ const ZerodhaCard = () => {
     loading: true,
     error: null
   });
+  const [kiteUserId, setKiteUserId] = useState('');
 
   useEffect(() => {
     checkConnectionStatus();
@@ -36,7 +37,7 @@ const ZerodhaCard = () => {
   const handleConnect = async () => {
     try {
       setConnectionStatus(prev => ({ ...prev, loading: true }));
-      const loginUrl = await zerodhaService.getLoginUrl();
+      const loginUrl = await zerodhaService.getLoginUrl(null, kiteUserId);
       window.location.href = loginUrl;
     } catch (error) {
       setConnectionStatus(prev => ({ 
@@ -132,13 +133,28 @@ const ZerodhaCard = () => {
           <p className="text-gray-600 text-sm mb-4">
             Connect your Zerodha account to access your trading data and portfolio information.
           </p>
-          <button 
-            onClick={handleConnect}
-            disabled={connectionStatus.loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            {connectionStatus.loading ? 'Connecting...' : 'Connect Account'}
-          </button>
+          <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3 sm:items-center">
+            <input 
+              type="text" 
+              placeholder="Enter Kite Username (e.g. AB1234)" 
+              value={kiteUserId}
+              onChange={(e) => setKiteUserId(e.target.value.toUpperCase())}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              disabled={connectionStatus.loading}
+            />
+            <button 
+              onClick={handleConnect}
+              disabled={connectionStatus.loading || !kiteUserId}
+              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 whitespace-nowrap text-sm font-medium"
+            >
+              {connectionStatus.loading ? 'Connecting...' : 'Connect Account'}
+            </button>
+          </div>
+          {!kiteUserId && (
+            <p className="text-xs text-amber-600 mt-2">
+              Please enter your Kite Username (Client ID) to proceed.
+            </p>
+          )}
         </div>
       )}
     </div>

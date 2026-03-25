@@ -7,6 +7,8 @@ import {
   BarChart3,
   Calendar,
 } from "lucide-react";
+import AIInsightCard from "../dashboard/AIInsightCard";
+import BucketAdvisory from "../dashboard/BucketAdvisory";
 
 const ScenarioVisualizationComponent = ({ scenarios, onAction }) => {
   const [selectedScenario, setSelectedScenario] = useState(null);
@@ -156,7 +158,7 @@ const ScenarioVisualizationComponent = ({ scenarios, onAction }) => {
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() =>
-            onAction("Show me a detailed comparison chart of these scenarios")
+            onAction("Show me a detailed comparison chart of these scenarios", { isAction: true })
           }
           className="btn-primary flex items-center space-x-2"
         >
@@ -165,7 +167,7 @@ const ScenarioVisualizationComponent = ({ scenarios, onAction }) => {
         </button>
         <button
           onClick={() =>
-            onAction(`Tell me more about the ${bestScenario.name} strategy`)
+            onAction(`Tell me more about the ${bestScenario.name} strategy`, { isAction: true })
           }
           className="btn-secondary flex items-center space-x-2"
         >
@@ -174,13 +176,39 @@ const ScenarioVisualizationComponent = ({ scenarios, onAction }) => {
         </button>
         <button
           onClick={() =>
-            onAction("What are the tax implications of each scenario?")
+            onAction("What are the tax implications of each scenario?", { isAction: true })
           }
           className="btn-secondary text-sm"
         >
           Tax Analysis
         </button>
       </div>
+
+      {/* AI Insight — explains all scenarios in plain English */}
+      <AIInsightCard
+        chartType="Retirement Scenario Comparison"
+        chartData={[
+          `${scenarios.length} scenarios analysed.`,
+          ...scenarios.map(
+            (s) =>
+              `${s.name}: Monthly Income ₹${s.monthlyIncome.toLocaleString("en-IN")}, Tax Impact ₹${s.taxImplication.toLocaleString("en-IN")}, Suitability ${s.suitability}%, Risk: ${s.riskLevel}.`
+          ),
+          `Recommended strategy: ${bestScenario.name} with ${bestScenario.suitability}% suitability.`,
+        ].join(" ")}
+      />
+
+      {/* 3-Bucket Advisory — using best scenario corpus & risk profile */}
+      <BucketAdvisory
+        corpus={bestScenario.totalValue || bestScenario.monthlyIncome * 12 * 20}
+        riskProfile={
+          bestScenario.riskLevel === "High"
+            ? "Aggressive"
+            : bestScenario.riskLevel === "Low"
+            ? "Conservative"
+            : "Moderate"
+        }
+        selectedScenario={bestScenario.id || "phased"}
+      />
     </div>
   );
 };

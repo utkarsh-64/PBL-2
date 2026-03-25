@@ -10,6 +10,8 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = () => {
+    localStorage.removeItem('chat_history');
+    localStorage.removeItem('chat_scenarios');
     logout();
     navigate("/");
   };

@@ -13,7 +13,7 @@ class ZerodhaService {
     };
   }
 
-  async getLoginUrl(returnUrl = null) {
+  async getLoginUrl(returnUrl = null, kiteUserId = null) {
     try {
       // Store the return URL in sessionStorage for callback redirect
       if (returnUrl) {
@@ -31,7 +31,12 @@ class ZerodhaService {
       }
 
       const data = await response.json();
-      return data.login_url;
+      let loginUrl = data.login_url;
+      if (kiteUserId) {
+        // Append user_id safely to pre-fill the kite login input
+        loginUrl += (loginUrl.includes('?') ? '&' : '?') + `user_id=${encodeURIComponent(kiteUserId)}`;
+      }
+      return loginUrl;
     } catch (error) {
       console.error('getLoginUrl error:', error);
       throw new Error(error.message || 'Failed to get login URL');

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import AIInsightCard from "../dashboard/AIInsightCard";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -292,6 +293,20 @@ const ComparisonChartComponent = ({ scenarios, chartType = "income" }) => {
           </div>
         </div>
       </div>
+
+      {/* AI Insight for whichever chart tab is active */}
+      <AIInsightCard
+        chartType={`Scenario ${chartTitles[activeChart]}`}
+        chartData={[
+          `Chart type: ${chartTitles[activeChart]}.`,
+          ...scenarios.map(
+            (s) =>
+              `${s.name}: Monthly Income ₹${s.monthlyIncome.toLocaleString("en-IN")}, Tax Impact ₹${s.taxImplication.toLocaleString("en-IN")}, Suitability ${s.suitability}%, Risk Level: ${s.riskLevel}.`
+          ),
+          `Highest monthly income: ${scenarios.reduce((max, s) => s.monthlyIncome > max.monthlyIncome ? s : max).name} at ₹${scenarios.reduce((max, s) => s.monthlyIncome > max.monthlyIncome ? s : max).monthlyIncome.toLocaleString("en-IN")}.`,
+          `Best suitability: ${scenarios.reduce((max, s) => s.suitability > max.suitability ? s : max).name} at ${scenarios.reduce((max, s) => s.suitability > max.suitability ? s : max).suitability}%.`,
+        ].join(" ")}
+      />
     </div>
   );
 };

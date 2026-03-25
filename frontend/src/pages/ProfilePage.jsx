@@ -44,6 +44,7 @@ export default function ProfilePage() {
     loading: true,
     error: null
   });
+  const [zerodhaUserId, setZerodhaUserId] = useState('');
 
   // Hash navigation effect
   useEffect(() => {
@@ -101,7 +102,7 @@ export default function ProfilePage() {
     setZerodhaStatus({ loading: true, error: null });
     // Pass current URL (settings page) as return URL for callback redirect
     const currentUrl = '/profile#settings';
-    const loginUrl = await zerodhaService.getLoginUrl(currentUrl);
+    const loginUrl = await zerodhaService.getLoginUrl(currentUrl, zerodhaUserId);
     
     // Redirect to Zerodha login instead of opening popup
     window.location.href = loginUrl;
@@ -149,10 +150,10 @@ export default function ProfilePage() {
     gender: userData.gender || user?.gender || "Prefer not to say",
     location: userData.location || "India",
     employmentStatus: userData.employerType || "Not Provided",
-    company: "",
+    company: userData.company || "",
     yearsOfService: userData.yearsOfService || "",
     retirementAge: userData.plannedRetirementAge || 60,
-    spouseName: "",
+    spouseName: userData.spouseName || "",
     goal: userData.retirementLifestyle || "",
     profilePicUrl: user?.profile_picture ?? "/profile-default.png"
   });
@@ -166,8 +167,10 @@ export default function ProfilePage() {
       gender: userData.gender || prev.gender,
       location: userData.location || prev.location,
       employmentStatus: userData.employerType || prev.employmentStatus,
+      company: userData.company || prev.company,
       yearsOfService: userData.yearsOfService || prev.yearsOfService,
       retirementAge: userData.plannedRetirementAge || prev.retirementAge,
+      spouseName: userData.spouseName || prev.spouseName,
       goal: userData.retirementLifestyle || prev.goal,
     }));
   }, [userData]);
@@ -211,7 +214,14 @@ export default function ProfilePage() {
         gender: profile.gender,
         location: profile.location,
         maritalStatus: profile.maritalStatus || userData.maritalStatus || "",
+        spouseName: profile.spouseName || userData.spouseName || "",
         numberOfDependants: profile.numberOfDependants || userData.numberOfDependants || 0,
+        // Income Status & Retirement data mapping
+        employerType: profile.employmentStatus,
+        company: profile.company,
+        yearsOfService: profile.yearsOfService,
+        plannedRetirementAge: profile.retirementAge,
+        retirementLifestyle: profile.goal,
       };
       await axios.post(`${API_BASE_URL}/users/user/add/`, payload, {
         headers: {
@@ -272,37 +282,34 @@ export default function ProfilePage() {
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
-  const Field = ({ label, name, type = "text", options, className = "" }) => (
-    <div className={`space-y-3 ${className}`}>
+  // ── renderField: plain function, NOT a component, so React never unmounts inputs ──
+  const renderField = ({ label, name, type = "text", options, className = "" }) => (
+    <div key={name} className={`space-y-3 ${className}`}>
       <label className="text-sm font-semibold text-slate-700">{label}</label>
       {editing ? (
         options ? (
           <select
             name={name}
-            value={profile[name]}
+            value={profile[name] ?? ""}
             onChange={handleChange}
             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white shadow-sm transition-all"
           >
             {options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
+              <option key={opt} value={opt}>{opt}</option>
             ))}
           </select>
         ) : (
           <input
             type={type}
             name={name}
-            value={profile[name]}
+            value={profile[name] ?? ""}
             onChange={handleChange}
             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary shadow-sm transition-all"
           />
         )
       ) : (
         <div className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-800 font-medium">
-          {profile[name] || (
-            <span className="text-slate-400 italic">Not provided</span>
-          )}
+          {profile[name] || <span className="text-slate-400 italic">Not provided</span>}
         </div>
       )}
     </div>
@@ -338,29 +345,23 @@ export default function ProfilePage() {
     </div>
   );
 
-  const PersonalTab = () => (
+  const renderPersonalTab = () => (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Field label="Full Name" name="fullName" />
-        <Field label="Email" name="email" type="email" />
-        <Field label="Date of Birth" name="dob" type="date" />
-        <Field
-          label="Gender"
-          name="gender"
-          options={["Male", "Female", "Other", "Prefer not to say"]}
-        />
-        <Field label="Location" name="location" />
-        <Field label="Spouse Name" name="spouseName" />
+        {renderField({ label: "Full Name", name: "fullName" })}
+        {renderField({ label: "Email", name: "email", type: "email" })}
+        {renderField({ label: "Date of Birth", name: "dob", type: "date" })}
+        {renderField({ label: "Gender", name: "gender", options: ["Male", "Female", "Other", "Prefer not to say"] })}
+        {renderField({ label: "Location", name: "location" })}
+        {renderField({ label: "Spouse Name", name: "spouseName" })}
       </div>
 
-              <div className="p-6 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary/20 rounded-2xl">
+      <div className="p-6 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary/20 rounded-2xl">
         <div className="flex items-center space-x-3 mb-3">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
             <User className="w-5 h-5 text-white" />
           </div>
-          <h4 className="font-semibold text-slate-800 text-lg">
-            Personal Summary
-          </h4>
+          <h4 className="font-semibold text-slate-800 text-lg">Personal Summary</h4>
         </div>
         <p className="text-slate-600 leading-relaxed">
           {profile.fullName} is a {calculateAge()}-year-old{" "}
@@ -371,17 +372,12 @@ export default function ProfilePage() {
     </div>
   );
 
-  const EmploymentTab = () => (
+  const renderEmploymentTab = () => (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Field label="Employment Status" name="employmentStatus" />
-        <Field label="Company" name="company" />
-        <Field
-          label="Years of Service"
-          name="yearsOfService"
-          type="number"
-          className="md:col-span-2"
-        />
+        {renderField({ label: "Employment Status", name: "employmentStatus" })}
+        {renderField({ label: "Company", name: "company" })}
+        {renderField({ label: "Years of Service", name: "yearsOfService", type: "number", className: "md:col-span-2" })}
       </div>
 
       <div className="p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl">
@@ -389,28 +385,21 @@ export default function ProfilePage() {
           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
             <Briefcase className="w-5 h-5 text-white" />
           </div>
-          <h4 className="font-semibold text-slate-800 text-lg">
-            Career Overview
-          </h4>
+          <h4 className="font-semibold text-slate-800 text-lg">Career Overview</h4>
         </div>
         <p className="text-slate-600 leading-relaxed">
           Currently working as a {profile.employmentStatus} at {profile.company}{" "}
-          with {profile.yearsOfService} years of professional experience in the
-          industry.
+          with {profile.yearsOfService} years of expected service in the industry.
         </p>
       </div>
     </div>
   );
 
-  const RetirementTab = () => (
+  const renderRetirementTab = () => (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Field
-          label="Target Retirement Age"
-          name="retirementAge"
-          type="number"
-        />
-        <Field label="Retirement Goal" name="goal" />
+        {renderField({ label: "Target Retirement Age", name: "retirementAge", type: "number" })}
+        {renderField({ label: "Retirement Goal", name: "goal" })}
       </div>
 
       <div className="p-6 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-2xl">
@@ -418,9 +407,7 @@ export default function ProfilePage() {
           <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center">
             <Target className="w-5 h-5 text-white" />
           </div>
-          <h4 className="font-semibold text-slate-800 text-lg">
-            Retirement Planning
-          </h4>
+          <h4 className="font-semibold text-slate-800 text-lg">Retirement Planning</h4>
         </div>
         <p className="text-slate-600 leading-relaxed">
           Planning to retire at age {profile.retirementAge}, which is{" "}
@@ -430,7 +417,7 @@ export default function ProfilePage() {
     </div>
   );
 
-  const SettingsTab = () => (
+  const renderSettingsTab = () => (
     <div className="space-y-8">
       {/* Account Integrations */}
       <div>
@@ -463,6 +450,16 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                {!zerodhaStatus.connected && (
+                  <input
+                    type="text"
+                    placeholder="Kite User ID"
+                    value={zerodhaUserId}
+                    onChange={(e) => setZerodhaUserId(e.target.value.toUpperCase())}
+                    className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    disabled={zerodhaStatus.loading}
+                  />
+                )}
                 {zerodhaStatus.connected && (
                   <button
                     onClick={checkZerodhaConnectionStatus}
@@ -475,7 +472,7 @@ export default function ProfilePage() {
                 )}
                 <button
                   onClick={zerodhaStatus.connected ? handleZerodhaDisconnect : handleZerodhaConnect}
-                  disabled={zerodhaStatus.loading}
+                  disabled={zerodhaStatus.loading || (!zerodhaStatus.connected && !zerodhaUserId)}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${
                     zerodhaStatus.connected
                       ? "bg-red-100 text-red-700 hover:bg-red-200"
@@ -595,15 +592,15 @@ export default function ProfilePage() {
   const renderTabContent = () => {
     switch (activeTab) {
       case "personal":
-        return <PersonalTab />;
+        return renderPersonalTab();
       case "employment":
-        return <EmploymentTab />;
+        return renderEmploymentTab();
       case "retirement":
-        return <RetirementTab />;
+        return renderRetirementTab();
       case "settings":
-        return <SettingsTab />;
+        return renderSettingsTab();
       default:
-        return <PersonalTab />;
+        return renderPersonalTab();
     }
   };
 
@@ -656,7 +653,7 @@ export default function ProfilePage() {
                     color="text-primary"
                   />
                   <StatItem
-                    label="Experience"
+                    label="Years of Service"
                     value={`${profile.yearsOfService} years`}
                     color="text-success-600"
                   />

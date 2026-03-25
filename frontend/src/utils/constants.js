@@ -3,7 +3,7 @@
 export const API_BASE_URL =
   import.meta.env.MODE === "production"
     ? "https://4.213.60.21.nip.io"
-    : "http://localhost:8000";
+    : "http://localhost:5000";
     
 export const APP_NAME = "FinScope";
 

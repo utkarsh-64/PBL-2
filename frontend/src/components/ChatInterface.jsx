@@ -45,7 +45,22 @@ const ChatInterface = ({ scenarios, setScenarios, messages, setMessages }) => {
     setIsTyping(true);
     setStagedFiles([]); // clear staged files after sending
 
-    // Generate bot response
+    // ── Smart routing: only route to Groq when
+    //    1) scenarios exist (user has a plan to ask about)
+    //    2) it's a genuine freeform typed message (not a button-triggered action)
+    //    3) no file is staged (file uploads must use the Gemini pipeline)
+    const hasScenarios = scenarios && scenarios.length > 0;
+    const isActionButton = !!data;  // button clicks pass { isAction: true } as data
+    const hasFile = stagedFiles.length > 0;
+
+    if (hasScenarios && !isActionButton && !hasFile && message.trim()) {
+      setTimeout(async () => {
+        await handleAskFinScope(message, scenarios);
+      }, 300);
+      return;
+    }
+
+    // Generate bot response (original pipeline — Gemini / local logic)
     setTimeout(async () => {
       const botResponse = await generateBotResponse(
         message,
@@ -84,6 +99,72 @@ const ChatInterface = ({ scenarios, setScenarios, messages, setMessages }) => {
     }, 500);
   };
 
+  // ── Groq-powered Q&A about scenarios and graphs ───────────────────────────
+  const handleAskFinScope = async (message, currentScenarios) => {
+    setIsTyping(true);
+    try {
+      // Build a plain-text graph context summary from the scenarios
+      const graphContext = currentScenarios
+        .map(
+          (s) =>
+            `${s.name}: Monthly Income ₹${s.monthlyIncome?.toLocaleString("en-IN")}, ` +
+            `Suitability ${s.suitability}%, Risk: ${s.riskLevel}`
+        )
+        .join(" | ");
+
+      // Send last 8 messages as chat history for continuity
+      const recentHistory = messages.slice(-8).map((m) => ({
+        type: m.type,
+        content: typeof m.content === "string" ? m.content.slice(0, 400) : "",
+      }));
+
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/chat/ai/ask/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message,
+          scenarios: currentScenarios,
+          graph_context: graphContext,
+          chat_history: recentHistory,
+        }),
+      });
+
+      const result = await response.json();
+      const answerText =
+        result.answer ||
+        "I couldn't find a direct answer in your plan. Try rephrasing your question.";
+
+      const botMessage = {
+        id: Date.now() + 1,
+        type: "bot",
+        content: answerText,
+        timestamp: new Date(),
+        // Support triggered components from the AI
+        component: result.trigger !== "none" ? result.trigger : null,
+        data: result.data || null,
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (err) {
+      console.error("FinScope AI ask error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          type: "bot",
+          content: "Sorry, I couldn't reach the AI advisor right now. Please try again.",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   const handleSendMessageInput = async (message, data = null) => {
     if (!message.trim() && !data && stagedFiles.length === 0) return;
 
@@ -99,7 +180,19 @@ const ChatInterface = ({ scenarios, setScenarios, messages, setMessages }) => {
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsTyping(true);
+    const currentStagedFiles = [...stagedFiles];
     setStagedFiles([]); // clear after sending
+
+    // ── Smart routing: if the user has scenarios and no file attached,
+    //    route ALL typed messages to Groq for continuous Q&A context.
+    const hasScenarios = scenarios && scenarios.length > 0;
+    const hasFile = currentStagedFiles.length > 0;
+    const isActionButton = !!data;
+
+    if (hasScenarios && !isActionButton && !hasFile && message.trim()) {
+      await handleAskFinScope(message, scenarios);
+      return;
+    }
 
     try {
       // Use FormData instead of JSON
@@ -115,7 +208,7 @@ const ChatInterface = ({ scenarios, setScenarios, messages, setMessages }) => {
       const response = await fetch(`${API_BASE_URL}/chat/answer/`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: formData,
       });
@@ -128,6 +221,8 @@ const ChatInterface = ({ scenarios, setScenarios, messages, setMessages }) => {
         content: result.bot_reply || "No response received",
         timestamp: new Date(),
         external_resources: result.external_resources || null,
+        component: result.component || null,
+        data: result.data || null,
       };
 
       setMessages((prev) => [...prev, botMessage]);
