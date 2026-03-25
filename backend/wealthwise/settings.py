@@ -18,7 +18,7 @@ from config import SITE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-rh+^nck42g_ow(jbvdk=ehr97uurrh@zmsj&grq+@#u=ad2ir_"
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("ENV_MODE", "dev").lower() == "dev"
