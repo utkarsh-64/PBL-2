@@ -1,4 +1,4 @@
-# Finscope 💰
+# WealthWise 💰
 **Plan Smart, Retire Confident.**
 
 An AI-assisted, privacy-first platform that helps retirees and near-retirees maximize their lifetime pension benefits through smart scenario modeling, optimization, and plain-language guidance.
@@ -33,7 +33,7 @@ An AI-assisted, privacy-first platform that helps retirees and near-retirees max
 ## 🏗️ Architecture
 
 ```
-FinScope/
+WealthWise/
 ├── frontend/          # React.js web application
 ├── backend/           # Django REST API
 ├── predictions/       # FastAPI ML service
@@ -67,7 +67,7 @@ FinScope/
 ### 1. Clone Repository
 ```bash
 git clone <repository-url>
-cd FinScope
+cd WealthWise
 ```
 
 ### 2. Backend Setup (Django)
