@@ -1,0 +1,93 @@
+{
+  "IDFCFIRSTB.NS": [
+    {
+      "Date": "2025-09-22 00:00:00+05:30",
+      "Open": 67.93,
+      "High": 68.3,
+      "Low": 67.76,
+      "Close": 67.91,
+      "Volume": 16339859,
+      "Dividends": 0.0,
+      "Stock Splits": 0.0,
+      "Future price": 82.55
+    }
+  ],
+  "NIFTYBEES.NS": [
+    {
+      "Date": "2025-09-22 00:00:00+05:30",
+      "Open": 278.27,
+      "High": 278.42,
+      "Low": 276.97,
+      "Close": 278.35,
+      "Volume": 4329103,
+      "Dividends": 0.0,
+      "Stock Splits": 0.0,
+      "Future price": 278.35
+    }
+  ],
+  "ONEPOINT-BE.NS": [
+    {
+      "Date": "2025-09-22 00:00:00+05:30",
+      "Open": 42.62,
+      "High": 42.69,
+      "Low": 42.5,
+      "Close": 42.57,
+      "Volume": 391617,
+      "Dividends": 0.0,
+      "Stock Splits": 0.0,
+      "Future price": 82.55
+    }
+  ],
+  "SUZLON.NS": [
+    {
+      "Date": "2025-09-22 00:00:00+05:30",
+      "Open": 55.95,
+      "High": 55.98,
+      "Low": 55.51,
+      "Close": 55.95,
+      "Volume": 76606463,
+      "Dividends": 0.0,
+      "Stock Splits": 0.0,
+      "Future price": 82.55
+    }
+  ],
+  "TATASTEEL.NS": [
+    {
+      "Date": "2025-09-22 00:00:00+05:30",
+      "Open": 158.38,
+      "High": 158.81,
+      "Low": 157.93,
+      "Close": 158.52,
+      "Volume": 25097125,
+      "Dividends": 0.0,
+      "Stock Splits": 0.0,
+      "Future price": 82.55
+    }
+  ],
+  "VIKASLIFE.NS": [
+    {
+      "Date": "2025-09-22 00:00:00+05:30",
+      "Open": 2.15,
+      "High": 2.16,
+      "Low": 2.14,
+      "Close": 2.15,
+      "Volume": 3728007,
+      "Dividends": 0.0,
+      "Stock Splits": 0.0,
+      "Future price": 82.55
+    }
+  ],
+  "VIVANTA.BO": [
+    {
+      "Date": "2025-09-22 00:00:00+05:30",
+      "Open": 2.54,
+      "High": 2.54,
+      "Low": 2.53,
+      "Close": 2.54,
+      "Volume": 210420,
+      "Dividends": 0.0,
+      "Stock Splits": 0.0,
+      "Future price": 82.55
+    }
+  ]
+}
