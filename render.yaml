@@ -1,8 +1,8 @@
-services:
-  # Database Service (auto-managed PostgreSQL on Render)
-  - type: psqldb
-    name: wealthwise-db
+databases:
+  - name: wealthwise-db
     plan: free
+
+services:
 
   # Django Core API
   - type: web
