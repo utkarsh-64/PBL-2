@@ -1,10 +1,10 @@
 // Update this URL to match your Django backend
 
 export const API_BASE_URL =
-  import.meta.env.MODE === "production"
-    ? "https://4.213.60.21.nip.io"
-    : "http://localhost:5000";
-    
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.MODE === "production"
+    ? "https://wealthwise-api-odci.onrender.com"
+    : "http://localhost:8000");
 export const APP_NAME = "FinScope";
 
 export const LIMITS = {
