@@ -15,6 +15,10 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
+    # Default Django to port 5000 so it never conflicts with FastAPI (port 8000).
+    # This only applies when running `runserver` without an explicit port argument.
+    if len(sys.argv) >= 2 and sys.argv[1] == "runserver" and len(sys.argv) == 2:
+        sys.argv.append("5000")
     execute_from_command_line(sys.argv)
 
 
