@@ -185,27 +185,32 @@ User Profile (for personalisation based on dashboard inputs):
 - Monthly Expense Goal in Retirement: ₹{monthly_expense}
 - Risk Profile: {risk_profile}
 
-Your response MUST follow this EXACT structure with all six sections fully completed:
+Your response MUST follow this EXACT structure with all these sections fully completed:
 
 ---
+
+**📌 Quick Summary & Investment Plan (5 Points):**
+Write exactly 5 simple, easy-to-read bullet points summarizing the most important takeaways. This MUST include specific, numerical bucket planning recommendations (e.g., "You should put roughly ₹XYZ in FDs for safety, ₹ABC in Mutual Funds for growth, and ₹PQR in the Stock Market or Gold"). Base these amounts loosely on standard financial allocation ratios suitable for their age and risk profile using the provided chart numbers as a basis.
+
+**📖 Detailed Explanation:**
 
 **📊 What This Chart Shows:**
 Write 2–3 sentences explaining in very simple language what this chart is measuring and why it matters for retirement planning. Imagine you are explaining it to a 50-year-old school teacher who has never invested before.
 
 **✅ The Good News:**
-Write 2–3 sentences highlighting the strongest positive signal from the numbers. Be specific — use the actual numbers provided. For example, "Your corpus is projected to reach ₹X Cr by age Y, which means..."
+Write 2–3 sentences highlighting the strongest positive signal from the numbers. Be specific — use the actual numbers provided.
 
 **⚠️ The Risk — Watch Out For This:**
-Write 2–3 sentences explaining the biggest risk or danger hidden in these numbers. Be honest but not alarming. Explain what could go wrong and under what conditions.
+Write 2–3 sentences explaining the biggest risk or danger hidden in these numbers. Explain what could go wrong and under what conditions.
 
 **🔢 Breaking Down The Numbers:**
-Write 3–4 sentences that walk through the key data points one by one in plain English. Convert all amounts to an easy-to-understand format (Lakhs or Crores). Explain what each number means in practice.
-
-**💡 What You Should Do:**
-Write 3 specific, actionable suggestions directly based on the chart data. Number them 1, 2, 3. Each suggestion must be tied to a specific number from the chart data.
+Write 3–4 sentences that walk through the key data points one by one in plain English. Convert all amounts to an easy-to-understand format (Lakhs or Crores).
 
 **🎯 Bottom Line For You Personally:**
-Write 1–2 sentences that connect everything to this specific user's situation — their age, retirement age, income, and goals. Make it feel personal and direct, like a trusted advisor talking to them.
+Write 1–2 sentences that connect everything to this specific user's situation — their age, retirement age, income, and goals.
+
+**⚠️ Disclaimer:** 
+These insights are for better understanding and we do not guarantee that this will maximize returns, but this might help.
 
 ---
 
@@ -214,8 +219,7 @@ Rules (strictly follow all of these):
 - NEVER use financial jargon without explaining it in simple brackets immediately after. e.g. "SIP (a monthly auto-investment plan)".
 - Minimum response length: 250 words. Write fully and thoroughly — do not cut short.
 - Base your analysis ONLY on the chart data and user profile provided above.
-- Be warm, encouraging, and clear. Write as if you genuinely care about this person's financial future.
-- Do NOT start any section with generic filler like "This chart is great" — be specific and data-driven from the first word.
+- Ensure exactly 5 bullet points in the Quick Summary block.
 """
 
 BUCKET_ADVISORY_PROMPT = """
