@@ -496,6 +496,68 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+          
+          {/* Angel One Integration Card */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 opacity-80 hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-[#FF6B00] rounded-lg flex items-center justify-center">
+                  <ExternalLink className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h4 className="font-medium text-slate-900">Angel One</h4>
+                    <div className="w-2 h-2 rounded-full bg-slate-300"></div>
+                  </div>
+                  <p className="text-sm text-slate-600">Connect your trading account</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Client ID"
+                  className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
+                />
+                <button
+                  onClick={() => alert("Angel One integration UI is ready. Backend API linkage requires developer credentials.")}
+                  className="bg-[#FF6B00] text-white hover:bg-[#E66000] px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Connect
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Dhan Integration Card */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 opacity-80 hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-[#14A57D] rounded-lg flex items-center justify-center">
+                  <ExternalLink className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h4 className="font-medium text-slate-900">Dhan</h4>
+                    <div className="w-2 h-2 rounded-full bg-slate-300"></div>
+                  </div>
+                  <p className="text-sm text-slate-600">Connect your trading account</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Dhan ID"
+                  className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14A57D] text-sm"
+                />
+                <button
+                  onClick={() => alert("Dhan integration UI is ready. Backend API linkage requires developer credentials.")}
+                  className="bg-[#14A57D] text-white hover:bg-[#12916F] px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Connect
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

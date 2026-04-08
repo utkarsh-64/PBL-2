@@ -20,6 +20,7 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
   const dispatch = useDispatch();
 
   const [mode, setMode] = useState(userData.mode || "zerodha"); // "zerodha" or "manual"
+  const [selectedBroker, setSelectedBroker] = useState("zerodha"); // "zerodha", "angelone", "dhan"
   const [formData, setFormData] = useState({
     // Zerodha connection
     zerodhaConnected: userData.zerodhaConnected || false,
@@ -298,7 +299,7 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
         </h3>
         <p className="text-sm text-gray-600">
           {mode === "zerodha"
-            ? "Connect your Zerodha account to automatically analyze your portfolio"
+            ? "Connect your broker account to automatically analyze your portfolio"
             : "Enter your investment details manually"}
         </p>
 
@@ -307,7 +308,7 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
           <div className="mt-4 flex items-start text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
             <Info className="h-4 w-4 mr-2 mt-0.5 text-blue-500 flex-shrink-0" />
             <span>
-              Connecting Zerodha provides more accurate risk tolerance
+              Connecting your broker provides more accurate risk tolerance
               calculations by analyzing your actual portfolio composition.
             </span>
           </div>
@@ -321,7 +322,7 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
           className="flex items-center text-primary hover:text-primary-600 mb-4 text-sm font-medium"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
-          Back to Zerodha connection
+          Back to broker connection
         </button>
       )}
 
@@ -343,9 +344,36 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
               <div className="flex items-center mb-4">
                 <BarChart3 className="h-5 w-5 text-primary mr-2" />
                 <h4 className="font-medium text-gray-900">
-                  Connect Your Zerodha Account
+                  Connect Your Broker Account
                 </h4>
               </div>
+
+              {/* Broker Selection Tabs */}
+              {!formData.zerodhaConnected && (
+                <div className="mb-6 flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBroker("zerodha")}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${selectedBroker === "zerodha" ? "bg-primary text-white border-primary shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}
+                  >
+                    Zerodha
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBroker("angelone")}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${selectedBroker === "angelone" ? "bg-primary text-white border-primary shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}
+                  >
+                    Angel One
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBroker("dhan")}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${selectedBroker === "dhan" ? "bg-primary text-white border-primary shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}
+                  >
+                    Dhan
+                  </button>
+                </div>
+              )}
 
               {formData.zerodhaConnected && formData.zerodhaProfile ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -369,7 +397,7 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
                 <div className="space-y-4">
                   <div className="bg-white border border-gray-300 rounded-lg p-4">
                     <h5 className="font-medium text-gray-900 mb-2">
-                      What we'll do with your Zerodha data:
+                      What we'll do with your broker data:
                     </h5>
                     <ul className="text-sm text-gray-600 space-y-1">
                       <li>• Analyze your current investment portfolio</li>
@@ -382,21 +410,28 @@ const RiskToleranceFormComponent = ({ onSubmit }) => {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input
                       type="text"
-                      placeholder="Enter Kite User ID"
+                      placeholder={`Enter ${selectedBroker === 'zerodha' ? 'Kite' : selectedBroker === 'angelone' ? 'Angel One' : 'Dhan'} User ID`}
                       value={zerodhaUserId}
                       onChange={(e) => setZerodhaUserId(e.target.value.toUpperCase())}
                       className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary shadow-sm uppercase placeholder:normal-case font-medium text-slate-700"
                       disabled={zerodhaStatus.loading}
                     />
                     <button
-                      onClick={handleZerodhaConnect}
+                      onClick={(e) => {
+                        if (selectedBroker === 'zerodha') {
+                          handleZerodhaConnect(e);
+                        } else {
+                          e.preventDefault();
+                          alert(`${selectedBroker === 'angelone' ? 'Angel One' : 'Dhan'} integration UI is ready. Backend API linkage requires developer credentials.`);
+                        }
+                      }}
                       disabled={zerodhaStatus.loading || !zerodhaUserId}
                       className="btn-primary flex items-center justify-center space-x-2 px-6 py-3 disabled:opacity-50"
                     >
                       {zerodhaStatus.loading ? (
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        "Connect Kite"
+                        `Connect ${selectedBroker === 'zerodha' ? 'Zerodha' : selectedBroker === 'angelone' ? 'Angel One' : 'Dhan'}`
                       )}
                     </button>
                   </div>

@@ -60,7 +60,37 @@ const FinancePage = () => {
                 setPortfolioValue(totalValue);
             }
 
-            // Historical chart data now sourced from local JSON only
+            // Now fetch dynamic chart data and prediction data
+            if (result.stocks && result.stocks.length > 0) {
+                const symbols = result.stocks.map(s => s.symbol);
+                try {
+                    const [chartRes, predRes] = await Promise.all([
+                        fetch(`${API_BASE_URL}/api/financial/stocks/`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({ symbols }),
+                            credentials: 'include',
+                        }),
+                        fetch(`${API_BASE_URL}/api/financial/stocks/predictions/`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({ symbols }),
+                            credentials: 'include',
+                        })
+                    ]);
+
+                    if (chartRes.ok) {
+                        const chartResult = await chartRes.json();
+                        setStocksData(chartResult.data || {});
+                    }
+                    if (predRes.ok) {
+                        const predResult = await predRes.json();
+                        setPredictedData(predResult || {});
+                    }
+                } catch (e) {
+                    console.error("Error fetching live chart or prediction data:", e);
+                }
+            }
 
         } catch (error) {
             setError(error.message);
@@ -69,24 +99,8 @@ const FinancePage = () => {
         }
     };
 
-    // Load local JSON data on component mount
+    // Fetch user stocks on component mount
     useEffect(() => {
-        const loadLocalData = async () => {
-            try {
-                const [stocksRes, predictedRes] = await Promise.all([
-                    fetch("/data/stocks_data.json"),
-                    fetch("/data/predicted_price.json")
-                ]);
-                const sData = await stocksRes.json();
-                const pData = await predictedRes.json();
-                setStocksData(sData);
-                setPredictedData(pData);
-            } catch (err) {
-                console.error("Error loading local data:", err);
-            }
-        };
-
-        loadLocalData();
         fetchUserStocks();
     }, []);
 
@@ -107,30 +121,17 @@ const FinancePage = () => {
         return current >= previous ? 'text-green-600' : 'text-red-600';
     };
 
-    // Resolve a time series from local JSON for a given stock's symbol
+    // Resolve a time series from backend data for a given stock's symbol
     const getLocalSeriesForStock = (stock) => {
-        const raw = stock.originalSymbol || stock.symbol || '';
-        const base = (raw || '').trim();
-        const baseUpper = base.toUpperCase();
-        const baseNoSuffix = baseUpper.replace(/\.(NS|BO)$/i, '');
-
-        const candidates = [
-            base,
-            baseUpper,
-            `${baseNoSuffix}.NS`,
-            `${baseNoSuffix}.BO`,
-            baseNoSuffix,
-        ];
-
-        for (const key of candidates) {
-            if (stocksData[key]) return { key, series: stocksData[key] };
-        }
-
-        // Final fallback: try to find a key that starts with baseNoSuffix
-        const fuzzyKey = Object.keys(stocksData).find(k => k.toUpperCase().startsWith(baseNoSuffix));
-        if (fuzzyKey) return { key: fuzzyKey, series: stocksData[fuzzyKey] };
-
-        return null;
+        const chartKey = stock.symbol;
+        const symbolData = stocksData[chartKey];
+        if (!symbolData) return null;
+        
+        // Return a default period, e.g., '1y' or whatever is available
+        const series = symbolData["1y"] || symbolData["6mo"] || symbolData["3mo"] || Object.values(symbolData)[0];
+        if (!series || !series.history) return null;
+        
+        return { key: stock.originalSymbol || stock.symbol, series };
     };
 
     // Removed unused createChartData; chart uses local JSON directly
@@ -289,7 +290,7 @@ const FinancePage = () => {
                                     <div className="grid grid-cols-2 gap-3 mb-4">
                                         <div className="bg-slate-50 p-3 rounded-lg">
                                             <p className="text-xs text-slate-500 font-medium">Quantity</p>
-                                            <p className="text-sm font-semibold text-slate-700">{stock.quantity || 'N/A'}</p>
+                                            <p className="text-sm font-semibold text-slate-700">{stock.quantity !== undefined ? stock.quantity : 'N/A'}</p>
                                         </div>
                                         <div className="bg-slate-50 p-3 rounded-lg">
                                             <p className="text-xs text-slate-500 font-medium">Invested</p>
@@ -315,14 +316,17 @@ const FinancePage = () => {
                                         </div>
                                     )}
 
-                                    {/* Mini Chart from local JSON */}
+                                    {/* Mini Chart from backend API */}
                                     {(() => {
-                                        const chartKey = stock.originalSymbol || stock.symbol;
-                                        const series = stocksData[chartKey];
-                                        if (!series || series.length === 0) return null;
+                                        const chartKey = stock.symbol;
+                                        const symbolData = stocksData[chartKey];
+                                        if (!symbolData) return null;
 
-                                        const dates = series.map((d) => d.Date.split(" ")[0]);
-                                        const prices = series.map((d) => d.Close);
+                                        const series = symbolData["1mo"] || symbolData["3mo"] || Object.values(symbolData)[0];
+                                        if (!series || !series.history || series.history.length === 0) return null;
+
+                                        const dates = series.dates;
+                                        const prices = series.history;
                                         const isPositive = prices[prices.length - 1] >= prices[0];
 
                                         const miniChartData = {
@@ -431,7 +435,7 @@ const FinancePage = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <p className="text-sm text-slate-500 font-medium">Quantity</p>
-                                                <p className="text-lg font-semibold text-slate-700">{selectedStock.quantity || 'N/A'}</p>
+                                                <p className="text-lg font-semibold text-slate-700">{selectedStock.quantity !== undefined ? selectedStock.quantity : 'N/A'}</p>
                                             </div>
                                             <div>
                                                 <p className="text-sm text-slate-500 font-medium">Average Price</p>
@@ -474,7 +478,7 @@ const FinancePage = () => {
                                     <div className="bg-slate-50 rounded-xl p-6 mt-6">
                                         <h3 className="text-lg font-semibold text-slate-900 mb-4">Predicted Price</h3>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-md text-slate-600">Q4' 25</span>
+                                            <span className="text-md text-slate-600">Q4' 27</span>
                                             <span className="text-lg font-semibold text-blue-600">
                                                 ₹{predictedData[selectedStock.symbol]?.[0]?.Close || "N/A"}
                                             </span>
@@ -491,9 +495,9 @@ const FinancePage = () => {
                                         <h3 className="text-lg font-semibold text-slate-900 mb-4">Price Chart</h3>
                                         {(() => {
                                             const resolved = getLocalSeriesForStock(selectedStock);
-                                            if (resolved && resolved.series && resolved.series.length > 0) {
-                                                const dates = resolved.series.map((d) => String(d.Date).split(" ")[0]);
-                                                const prices = resolved.series.map((d) => d.Close);
+                                            if (resolved && resolved.series) {
+                                                const dates = resolved.series.dates;
+                                                const prices = resolved.series.history;
 
                                                 const chartData = {
                                                     labels: dates,

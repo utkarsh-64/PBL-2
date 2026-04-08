@@ -16,6 +16,7 @@ import { Line, Bar, Doughnut } from "react-chartjs-2";
 import RetirementChart from "../components/dashboard/RetirementChart";
 import RetirementSimulationChart from "../components/dashboard/RetirementSimulationChart";
 import PayoutComparison from "../components/dashboard/PayoutComparison";
+import SIPCalculator from "../components/dashboard/SIPCalculator";
 import BreakEvenChart from "../components/dashboard/BreakEvenChart";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -324,6 +325,17 @@ const DashboardPage = () => {
                   chartData={`Required corpus: ₹${calculations.requiredCorpus} Crores. Monthly pension target: ₹${calculations.monthlyPension}K. Retirement age: ${retirementAge}. Life expectancy: ${lifeExpectancy} years. Tax bracket: ${taxBracket}%.`}
                 />
               </div>
+            </div>
+
+            {/* SIP and Lumpsum Calculator */}
+            <div className="rounded-3xl shadow-xl p-6 border border-[#00A783]/30 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] bg-white">
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <span className="bg-[#E8FAF4] text-[#00A783] p-2 rounded-xl mr-4 shadow-sm">
+                  💰
+                </span>
+                SIP & Lumpsum Calculator
+              </h3>
+              <SIPCalculator />
             </div>
 
             <div className="rounded-3xl shadow-xl p-6 border border-teal-200/50 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]">
