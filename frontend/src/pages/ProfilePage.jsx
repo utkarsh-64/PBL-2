@@ -519,7 +519,7 @@ export default function ProfilePage() {
                   className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
                 />
                 <button
-                  onClick={() => alert("Angel One integration UI is ready. Backend API linkage requires developer credentials.")}
+                  // TODO: Implement Angel One connecting service
                   className="bg-[#FF6B00] text-white hover:bg-[#E66000] px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   Connect
@@ -550,7 +550,7 @@ export default function ProfilePage() {
                   className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14A57D] text-sm"
                 />
                 <button
-                  onClick={() => alert("Dhan integration UI is ready. Backend API linkage requires developer credentials.")}
+                  // TODO: Implement Dhan connecting service
                   className="bg-[#14A57D] text-white hover:bg-[#12916F] px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   Connect
