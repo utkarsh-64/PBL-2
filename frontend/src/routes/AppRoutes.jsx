@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import { useDispatch } from "react-redux";
 import Navbar from "../components/Navbar";
@@ -93,21 +93,11 @@ function AppRoutes() {
         <Route path="/angelone/callback" element={<AngelOneCallback />} />
         <Route
           path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <GlobalErrorBoundary>
-                <DashboardPage />
-              </GlobalErrorBoundary>
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/home/dashboard" replace />}
         />
         <Route
           path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/home/profile" replace />}
         />
         <Route
           path="/home/*"
