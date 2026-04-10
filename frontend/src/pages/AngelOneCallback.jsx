@@ -26,9 +26,9 @@ const AngelOneCallback = () => {
         
         setStatus('success');
         
-        // Redirect to dashboard after 2 seconds
+        // Redirect to profile page after 2 seconds
         setTimeout(() => {
-          navigate('/dashboard', { replace: true });
+          navigate('/home/profile', { replace: true });
         }, 2000);
         
       } catch (err) {
@@ -37,12 +37,12 @@ const AngelOneCallback = () => {
         setError(err.message || 'Failed to securely link Angel One account.');
         
         setTimeout(() => {
-          navigate('/dashboard', { replace: true });
+          navigate('/home/profile', { replace: true });
         }, 4000);
       }
     } else {
       // Invalid callback
-      navigate('/dashboard', { replace: true });
+      navigate('/home/profile', { replace: true });
     }
   };
 
