@@ -6,7 +6,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('financial_data', '0002_alter_zerodhauser_access_token_and_more'),
-        ('auth', '0012_alter_user_first_name_max_length'),
     ]
 
     operations = [
