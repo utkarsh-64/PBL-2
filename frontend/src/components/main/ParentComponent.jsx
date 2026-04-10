@@ -33,7 +33,7 @@ const ParentComponentContent = ({ userData }) => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 overflow-hidden">
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 h-screen overflow-hidden">
       <div className="flex max-h-screen">
         {/* Left Sidebar */}
         <div className="w-80 bg-white/70 backdrop-blur-sm border-r border-gray-200 shadow-xl">
@@ -42,8 +42,10 @@ const ParentComponentContent = ({ userData }) => {
           </div>
         </div>
 
-        {/* Main Content */}
-        <Outlet />
+        {/* Main Content — scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <Outlet />
+        </div>
       </div>
 
       {/* Character Companion */}

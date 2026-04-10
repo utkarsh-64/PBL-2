@@ -73,7 +73,7 @@ const SideNavComponent = ({ onNavClick }) => {
           <p className="text-blue-100 text-sm opacity-90">{userData.email}</p>
 
           <button
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/home/profile")}
             className="w-full mt-6 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold py-3 px-4 rounded-2xl transition-all duration-200 border border-white/20"
           >
             View Full Profile
@@ -102,7 +102,7 @@ const SideNavComponent = ({ onNavClick }) => {
             );
           })}
           <li
-            onClick={() => navigate("/profile#settings")}
+            onClick={() => navigate("/home/profile", { state: { tab: 'settings' } })}
             className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition"
           >
             <Settings className="w-5 h-5" />
