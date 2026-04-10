@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
@@ -141,9 +142,17 @@ export default function PayoutComparison({ corpusValue }) {
           <Tooltip formatter={(value) => `₹${value.toLocaleString("en-IN")}`} />
           <Legend />
           {mode === "tax" ? (
-            <Bar dataKey="tax" fill="#dc2626" radius={[10, 10, 0, 0]} />
+            <Bar dataKey="tax" radius={[10, 10, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={["#ef4444", "#f97316", "#eab308"][index]} />
+              ))}
+            </Bar>
           ) : (
-            <Bar dataKey="monthlyNet" fill="#2563eb" radius={[10, 10, 0, 0]} />
+            <Bar dataKey="monthlyNet" radius={[10, 10, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={["#3b82f6", "#10b981", "#8b5cf6"][index]} />
+              ))}
+            </Bar>
           )}
         </BarChart>
       </ResponsiveContainer>
