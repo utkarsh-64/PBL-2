@@ -23,7 +23,51 @@ const FinancePage = () => {
     const [angelOneHoldings, setAngelOneHoldings] = useState([]);
     const [angelOneLoading, setAngelOneLoading] = useState(false);
     const [angelOneError, setAngelOneError] = useState('');
-    const [angelOneSummary, setAngelOneSummary] = useState({});
+    const [angelOneSummary, setAngelOneSummary] = useState({
+        total_current_value: 0,
+        total_invested: 0,
+        total_pnl: 0,
+        total_pnl_percent: 0
+    });
+
+    // Helper to fetch chart/prediction data for any list of stocks
+    const fetchChartDataForSymbols = async (stocks, currentHeaders) => {
+        if (!stocks || stocks.length === 0) return;
+        
+        // Clean symbols (remove -EQ, -BE etc for Angel One lookup)
+        const symbols = stocks.map(s => {
+            const sym = s.symbol || '';
+            return sym.split('-')[0].split('_')[0].trim();
+        });
+
+        try {
+            const [chartRes, predRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/financial/stocks/`, {
+                    method: 'POST',
+                    headers: currentHeaders,
+                    body: JSON.stringify({ symbols }),
+                    credentials: 'include',
+                }),
+                fetch(`${API_BASE_URL}/api/financial/stocks/predictions/`, {
+                    method: 'POST',
+                    headers: currentHeaders,
+                    body: JSON.stringify({ symbols }),
+                    credentials: 'include',
+                })
+            ]);
+
+            if (chartRes.ok) {
+                const chartResult = await chartRes.json();
+                setStocksData(prev => ({ ...prev, ...(chartResult.data || {}) }));
+            }
+            if (predRes.ok) {
+                const predResult = await predRes.json();
+                setPredictedData(prev => ({ ...prev, ...(predResult || {}) }));
+            }
+        } catch (e) {
+            console.error("Error fetching live chart or prediction data:", e);
+        }
+    };
 
     // Fetch user's stock holdings from Zerodha
     const fetchUserStocks = async () => {
@@ -60,43 +104,13 @@ const FinancePage = () => {
                 setTotalInvestedAmount(result.portfolio_summary.total_invested_amount || 0);
                 setPortfolioValue(result.portfolio_summary.total_current_value || 0);
             } else {
-                // Fallback calculation for backward compatibility
-                const totalValue = result.stocks?.reduce((sum, stock) => {
-                    return sum + (stock.currentPrice || 0);
-                }, 0) || 0;
+                const totalValue = result.stocks?.reduce((sum, stock) => sum + (stock.currentPrice || 0), 0) || 0;
                 setPortfolioValue(totalValue);
             }
 
-            // Now fetch dynamic chart data and prediction data
+            // Fetch extra data for Zerodha stocks
             if (result.stocks && result.stocks.length > 0) {
-                const symbols = result.stocks.map(s => s.symbol);
-                try {
-                    const [chartRes, predRes] = await Promise.all([
-                        fetch(`${API_BASE_URL}/api/financial/stocks/`, {
-                            method: 'POST',
-                            headers,
-                            body: JSON.stringify({ symbols }),
-                            credentials: 'include',
-                        }),
-                        fetch(`${API_BASE_URL}/api/financial/stocks/predictions/`, {
-                            method: 'POST',
-                            headers,
-                            body: JSON.stringify({ symbols }),
-                            credentials: 'include',
-                        })
-                    ]);
-
-                    if (chartRes.ok) {
-                        const chartResult = await chartRes.json();
-                        setStocksData(chartResult.data || {});
-                    }
-                    if (predRes.ok) {
-                        const predResult = await predRes.json();
-                        setPredictedData(predResult || {});
-                    }
-                } catch (e) {
-                    console.error("Error fetching live chart or prediction data:", e);
-                }
+                await fetchChartDataForSymbols(result.stocks, headers);
             }
 
         } catch (error) {
@@ -133,7 +147,6 @@ const FinancePage = () => {
                 credentials: 'include',
             });
 
-            // Guard against HTML error pages (500/404 from server before JSON middleware)
             const contentType = response.headers.get('content-type') || '';
             if (!contentType.includes('application/json')) {
                 throw new Error(
@@ -151,6 +164,11 @@ const FinancePage = () => {
 
             setAngelOneHoldings(result.holdings || []);
             setAngelOneSummary(result.portfolio_summary || {});
+
+            // Fetch extra data for Angel One stocks
+            if (result.holdings && result.holdings.length > 0) {
+                await fetchChartDataForSymbols(result.holdings, headers);
+            }
         } catch (err) {
             setAngelOneError(err.message);
         } finally {
@@ -161,10 +179,6 @@ const FinancePage = () => {
     useEffect(() => {
         if (angelOneConnected) fetchAngelOneHoldings();
     }, [angelOneConnected]);
-
-    // Removed selected period logic tied to backend charts
-
-
 
     // Format percentage
     const formatPercentage = (current, previous) => {
@@ -181,18 +195,15 @@ const FinancePage = () => {
 
     // Resolve a time series from backend data for a given stock's symbol
     const getLocalSeriesForStock = (stock) => {
-        const chartKey = stock.symbol;
-        const symbolData = stocksData[chartKey];
+        const symbolForChart = (stock.symbol || '').split('-')[0].split('_')[0].trim();
+        const symbolData = stocksData[symbolForChart];
         if (!symbolData) return null;
         
-        // Return a default period, e.g., '1y' or whatever is available
         const series = symbolData["1y"] || symbolData["6mo"] || symbolData["3mo"] || Object.values(symbolData)[0];
         if (!series || !series.history) return null;
         
-        return { key: stock.originalSymbol || stock.symbol, series };
+        return { key: symbolForChart, series };
     };
-
-    // Removed unused createChartData; chart uses local JSON directly
 
     // Open stock modal
     const openStockModal = (stock) => {
@@ -206,553 +217,288 @@ const FinancePage = () => {
         setSelectedStock(null);
     };
 
-    return (
-        <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-            <div className="w-full max-w-none p-6 overflow-y-auto" >
-                {/* Header */}
-                <div className="mb-8 flex items-center gap-3">
-                    <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-                        <BarChart3 className="w-8 h-8 text-white" />
+    // Shared Stock Card Component
+    const StockCard = ({ stock }) => {
+        const symbolForChart = (stock.symbol || '').split('-')[0].split('_')[0].trim();
+        const symbolData = stocksData[symbolForChart];
+        
+        let miniChartData = null;
+        if (symbolData) {
+            const series = symbolData["1mo"] || symbolData["3mo"] || Object.values(symbolData)[0];
+            if (series && series.history && series.history.length > 0) {
+                const prices = series.history;
+                const isPositive = prices[prices.length - 1] >= prices[0];
+                miniChartData = {
+                    labels: series.dates,
+                    datasets: [{
+                        data: prices,
+                        borderColor: isPositive ? '#10b981' : '#ef4444',
+                        backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 2,
+                    }]
+                };
+            }
+        }
+
+        return (
+            <div
+                className="bg-white rounded-2xl shadow-lg border border-slate-100 p-5 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
+                onClick={() => openStockModal(stock)}
+            >
+                <div className="flex items-start justify-between mb-4 gap-2">
+                    <div className="flex-1">
+                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-600 truncate">
+                            {stock.longName || stock.name || stock.symbol}
+                        </h3>
+                        <p className="text-sm text-slate-500 font-mono">{stock.symbol}</p>
                     </div>
-                    <div>
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
-                            My Portfolio Dashboard
-                        </h1>
-                        <p className="text-slate-600 text-lg mt-1">
-                            Track your Zerodha &amp; Angel One investments and get real-time market insights
+                    <div className="text-right">
+                        <p className="text-lg font-bold text-slate-900">₹{stock.currentPrice?.toFixed(2)}</p>
+                        <p className={`text-sm font-semibold ${stock.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {stock.pnlPercent >= 0 ? '+' : ''}{stock.pnlPercent?.toFixed(2)}%
                         </p>
                     </div>
                 </div>
 
-                {/* Portfolio Summary */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 p-6 mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-bold text-slate-900">Portfolio Overview</h2>
-                        <button
-                            onClick={fetchUserStocks}
-                            disabled={loading}
-                            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
-                            Refresh
-                        </button>
+                <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+                    <div className="bg-slate-50 p-2 rounded-lg">
+                        <p className="text-slate-500">Qty</p>
+                        <p className="font-bold text-slate-700">{stock.quantity}</p>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-100 p-4 rounded-xl border border-green-200">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-500 rounded-lg">
-                                    <IndianRupee className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-green-600 font-medium">Total Value</p>
-                                    <p className="text-xl font-bold text-green-800">₹{portfolioValue?.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-orange-50 to-amber-100 p-4 rounded-xl border border-orange-200">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-orange-500 rounded-lg">
-                                    <TrendingUp className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-orange-600 font-medium">Invested Amount</p>
-                                    <p className="text-xl font-bold text-orange-800">₹{totalInvestedAmount?.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4 rounded-xl border border-blue-200">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${portfolioValue >= totalInvestedAmount ? 'bg-green-500' : 'bg-red-500'}`}>
-                                    <TrendingUp className={`w-5 h-5 text-white ${portfolioValue < totalInvestedAmount ? 'rotate-180' : ''}`} />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-blue-600 font-medium">Profit/Loss</p>
-                                    <p className={`text-xl font-bold ${portfolioValue >= totalInvestedAmount ? 'text-green-800' : 'text-red-800'}`}>
-                                        {portfolioValue >= totalInvestedAmount ? '+' : ''}₹{(portfolioValue - totalInvestedAmount).toFixed(2)}
-                                    </p>
-                                    <p className={`text-xs font-medium ${portfolioValue >= totalInvestedAmount ? 'text-green-600' : 'text-red-600'}`}>
-                                        {portfolioValue >= totalInvestedAmount ? '+' : ''}{((portfolioValue - totalInvestedAmount) / totalInvestedAmount * 100).toFixed(2)}%
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-purple-50 to-violet-100 p-4 rounded-xl border border-purple-200">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-purple-500 rounded-lg">
-                                    <Calendar className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-purple-600 font-medium">Last Updated</p>
-                                    <p className="text-lg font-bold text-purple-800">{new Date().toLocaleDateString()}</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="bg-slate-50 p-2 rounded-lg">
+                        <p className="text-slate-500">Value</p>
+                        <p className="font-bold text-slate-700">₹{stock.currentValue?.toFixed(2)}</p>
                     </div>
                 </div>
 
-                {/* Error Display */}
-                {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-                        <p className="text-red-700 text-sm"><strong>Error:</strong> {error}</p>
+                {miniChartData ? (
+                    <div className="h-20 mb-3">
+                        <Line
+                            data={miniChartData}
+                            options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                                scales: { x: { display: false }, y: { display: false } },
+                                elements: { line: { borderWidth: 2 } },
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <div className="h-20 mb-3 bg-slate-50 rounded-lg flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
                     </div>
                 )}
 
-                {/* Loading State */}
-                {loading && (
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                        <span className="ml-2 text-blue-600">Loading your portfolio...</span>
-                    </div>
-                )}
+                <div className="flex items-center justify-center text-blue-600 text-xs font-medium opacity-Group-hover:opacity-100 transition-opacity">
+                    <ExternalLink className="w-3 h-3 mr-1" /> View Analysis
+                </div>
+            </div>
+        );
+    };
 
-                {/* Stock Grid - 2 Column Layout */}
-                {!loading && userStocks.length > 0 && (
-                    <div className="mb-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold text-slate-900">Your Stocks</h2>
+    return (
+        <div className="flex-1 overflow-y-auto bg-slate-50">
+            <div className="w-full p-6">
+                {/* Header */}
+                <div className="mb-8 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-gradient-to-br from-indigo-700 to-blue-800 rounded-2xl shadow-xl shadow-indigo-100">
+                            <BarChart3 className="w-8 h-8 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Terminal Portfolio</h1>
+                            <p className="text-slate-500 font-medium">Synced across Zerodha &amp; Angel One</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3">
+                         <button 
+                            onClick={() => { fetchUserStocks(); if(angelOneConnected) fetchAngelOneHoldings(); }} 
+                            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all active:scale-95"
+                         >
+                            <Loader2 className={`w-4 h-4 ${loading || angelOneLoading ? 'animate-spin' : ''}`} />
+                            Sync All
+                         </button>
+                    </div>
+                </div>
+
+                {/* Main 2-Column Side-by-Side Layout */}
+                <div className="flex flex-col xl:flex-row gap-8 items-start">
+                    
+                    {/* LEFT COLUMN: Zerodha */}
+                    <div className="flex-1 w-full space-y-6">
+                        <div className="flex items-center gap-3 mb-2">
+                             <div className="w-1.5 h-8 bg-blue-600 rounded-full shadow-lg shadow-blue-200"></div>
+                             <div>
+                                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Zerodha</h2>
+                                <p className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full inline-block">LIVE KITE CONNECT</p>
+                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {userStocks.map((stock, index) => (
-                                <div
-                                    key={index}
-                                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 p-6 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
-                                    onClick={() => openStockModal(stock)}
-                                >
-                                    {/* Stock Header */}
-                                    <div className="flex items-start justify-between mb-4 gap-4">
-                                        <div className="flex-1">
-                                            <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors ">
-                                                {stock.longName}
-                                            </h3>
-                                            <p className="text-lg text-slate-600 font-mono">{stock.originalSymbol || stock.symbol}</p>
-                                            {stock.sector && (
-                                                <p className="text-sm text-slate-500 bg-slate-100 px-2 py-1 rounded-full inline-block mt-1">
-                                                    {stock.sector}
-                                                </p>
-                                            )}
+                        {/* Zerodha Summary */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                             <div className="flex justify-between items-end">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Portfolio Value</p>
+                                    <h3 className="text-4xl font-extrabold text-slate-900">₹{portfolioValue?.toLocaleString()}</h3>
+                                </div>
+                                <div className="text-right">
+                                    <p title="Realized + Unrealized P&L" className={`text-xl font-bold ${portfolioValue >= totalInvestedAmount ? 'text-green-600' : 'text-red-600'}`}>
+                                        {portfolioValue >= totalInvestedAmount ? '+' : ''}₹{(portfolioValue - totalInvestedAmount).toFixed(2)}
+                                    </p>
+                                    <div className={`text-xs font-black inline-block px-2 py-1 rounded-lg ${portfolioValue >= totalInvestedAmount ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {portfolioValue >= totalInvestedAmount ? '+' : ''}{((portfolioValue - totalInvestedAmount) / totalInvestedAmount * 100 || 0).toFixed(2)}%
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+
+                        {/* Zerodha Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {loading && userStocks.length === 0 ? (
+                                <div className="col-span-full h-40 bg-white rounded-2xl flex items-center justify-center border border-dashed border-slate-200">
+                                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                                </div>
+                            ) : userStocks.length > 0 ? (
+                                userStocks.map((stock, idx) => <StockCard key={idx} stock={stock} />)
+                            ) : (
+                                <div className="col-span-full h-40 bg-white rounded-2xl flex items-center justify-center border border-dashed border-slate-200 italic text-slate-400">
+                                    No Zerodha holdings found
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: Angel One */}
+                    <div className="flex-1 w-full space-y-6">
+                        <div className="flex items-center gap-3 mb-2">
+                             <div className="w-1.5 h-8 bg-orange-500 rounded-full shadow-lg shadow-orange-200"></div>
+                             <div>
+                                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Angel One</h2>
+                                <p className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full inline-block">LIVE SMARTAPI</p>
+                             </div>
+                        </div>
+
+                        {/* Angel One Summary */}
+                        {!angelOneConnected ? (
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center flex flex-col items-center justify-center h-28">
+                                <a href="/home/profile" className="text-orange-600 font-bold hover:underline flex items-center gap-2">
+                                    <ExternalLink className="w-4 h-4" /> Link Angel One Account
+                                </a>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Portfolio Value</p>
+                                        <h3 className="text-4xl font-extrabold text-slate-900">₹{angelOneSummary.total_current_value?.toLocaleString()}</h3>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className={`text-xl font-bold ${angelOneSummary.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {angelOneSummary.total_pnl >= 0 ? '+' : ''}₹{angelOneSummary.total_pnl?.toFixed(2)}
+                                        </p>
+                                        <div className={`text-xs font-black inline-block px-2 py-1 rounded-lg ${angelOneSummary.total_pnl >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {angelOneSummary.total_pnl >= 0 ? '+' : ''}{angelOneSummary.total_pnl_percent?.toFixed(2)}%
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-3xl font-bold text-slate-900">₹{stock.currentPrice?.toFixed(2)}</p>
-                                            <p className={`text-lg font-semibold ${getPriceChangeColor(stock.currentPrice, stock.previousClose)}`}>
-                                                {formatPercentage(stock.currentPrice, stock.previousClose)}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Angel One Grid */}
+                        {angelOneConnected && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {angelOneLoading && angelOneHoldings.length === 0 ? (
+                                    <div className="col-span-full h-40 bg-white rounded-2xl flex items-center justify-center border border-dashed border-slate-200">
+                                        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                                    </div>
+                                ) : angelOneHoldings.length > 0 ? (
+                                    angelOneHoldings.map((stock, idx) => <StockCard key={idx} stock={stock} />)
+                                ) : (
+                                    <div className="col-span-full h-40 bg-white rounded-2xl flex items-center justify-center border border-dashed border-slate-200 italic text-slate-400">
+                                        No Angel One holdings found
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Modal */}
+            {isModalOpen && selectedStock && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-y-auto border border-slate-100">
+                        <div className="sticky top-0 bg-white px-8 py-6 border-b border-slate-100 flex items-center justify-between z-10">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-900">{selectedStock.longName || selectedStock.name || selectedStock.symbol}</h2>
+                                <p className="text-xs font-bold text-slate-400 font-mono italic">{selectedStock.symbol}</p>
+                            </div>
+                            <button onClick={closeStockModal} className="p-2 hover:bg-slate-100 rounded-full transition-all">
+                                <X className="w-6 h-6 text-slate-400" />
+                            </button>
+                        </div>
+                        <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <div className="bg-slate-50 p-6 rounded-3xl">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-4">Investment Performance</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-sm text-slate-500">Current Price</p>
+                                            <p className="text-2xl font-black">₹{selectedStock.currentPrice?.toFixed(2)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-slate-500">P&L Account</p>
+                                            <p className={`text-2xl font-black ${selectedStock.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                ₹{selectedStock.pnl?.toFixed(2)}
                                             </p>
                                         </div>
                                     </div>
-
-                                    {/* Quick Stats */}
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
-                                        <div className="bg-slate-50 p-3 rounded-lg">
-                                            <p className="text-xs text-slate-500 font-medium">Quantity</p>
-                                            <p className="text-sm font-semibold text-slate-700">{stock.quantity !== undefined ? stock.quantity : 'N/A'}</p>
-                                        </div>
-                                        <div className="bg-slate-50 p-3 rounded-lg">
-                                            <p className="text-xs text-slate-500 font-medium">Invested</p>
-                                            <p className="text-sm font-semibold text-slate-700">₹{stock.investedAmount?.toFixed(2) || 'N/A'}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Profit/Loss for this stock */}
-                                    {stock.investedAmount && stock.currentValue && (
-                                        <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs text-slate-500 font-medium">P&L</span>
-                                                <span className={`text-sm font-semibold ${stock.currentValue >= stock.investedAmount ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {stock.currentValue >= stock.investedAmount ? '+' : ''}₹{(stock.currentValue - stock.investedAmount).toFixed(2)}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between mt-1">
-                                                <span className="text-xs text-slate-500">Return</span>
-                                                <span className={`text-sm font-semibold ${stock.currentValue >= stock.investedAmount ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {stock.currentValue >= stock.investedAmount ? '+' : ''}{((stock.currentValue - stock.investedAmount) / stock.investedAmount * 100).toFixed(2)}%
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Mini Chart from backend API */}
-                                    {(() => {
-                                        const chartKey = stock.symbol;
-                                        const symbolData = stocksData[chartKey];
-                                        if (!symbolData) return null;
-
-                                        const series = symbolData["1mo"] || symbolData["3mo"] || Object.values(symbolData)[0];
-                                        if (!series || !series.history || series.history.length === 0) return null;
-
-                                        const dates = series.dates;
-                                        const prices = series.history;
-                                        const isPositive = prices[prices.length - 1] >= prices[0];
-
-                                        const miniChartData = {
-                                            labels: dates,
-                                            datasets: [
-                                                {
-                                                    label: `${chartKey} Closing Price`,
-                                                    data: prices,
-                                                    borderColor: isPositive ? '#10b981' : '#ef4444',
-                                                    backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                    fill: true,
-                                                    tension: 0.4,
-                                                    pointRadius: 0,
-                                                    pointHoverRadius: 2,
-                                                },
-                                            ],
-                                        };
-
-                                        return (
-                                            <div className="h-28">
-                                                <Line
-                                                    data={miniChartData}
-                                                    options={{
-                                                        responsive: true,
-                                                        maintainAspectRatio: false,
-                                                        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
-                                                        scales: {
-                                                            x: { display: false },
-                                                            y: { display: false },
-                                                        },
-                                                        elements: { line: { borderWidth: 2 } },
-                                                    }}
-                                                />
-                                            </div>
-                                        );
-                                    })()}
-
-                                    {/* Click Indicator */}
-                                    <div className="flex items-center justify-center text-blue-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <ExternalLink className="w-4 h-4 mr-2" />
-                                        Click to view details
+                                </div>
+                                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-3xl text-white shadow-xl shadow-indigo-100">
+                                    <h5 className="font-bold flex items-center gap-2 mb-4"><TrendingUp className="w-4 h-4" /> AI Price Prediction</h5>
+                                    <div className="flex items-center justify-between">
+                                        <span className="opacity-80">Target Q4 2027</span>
+                                        <span className="text-3xl font-black text-white">₹{predictedData[(selectedStock.symbol || '').split('-')[0]]?.[0]?.Close || "..." }</span>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Empty State */}
-                {!loading && userStocks.length === 0 && !error && (
-                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 p-12 text-center">
-                        <BarChart3 className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-slate-700 mb-2">No Stocks Found</h3>
-                        <p className="text-slate-500 mb-6">
-                            It looks like you don't have any stock holdings in your Zerodha account, or there was an issue fetching your portfolio.
-                        </p>
-                        <button
-                            onClick={fetchUserStocks}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700"
-                        >
-                            Try Again
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Stock Detail Modal */}
-            {isModalOpen && selectedStock && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-                        {/* Modal Header */}
-                        <div className="sticky top-0 bg-white border-b border-slate-200 p-6 rounded-t-2xl">
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <h2 className="text-3xl font-bold text-slate-900">{selectedStock.longName}</h2>
-                                    <p className="text-xl text-slate-600 font-mono">{selectedStock.originalSymbol || selectedStock.symbol}</p>
-                                    {selectedStock.sector && (
-                                        <p className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full inline-block mt-2">
-                                            {selectedStock.sector}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="text-right ml-6">
-                                    <p className="text-4xl font-bold text-slate-900">₹{selectedStock.currentPrice?.toFixed(2)}</p>
-                                    <p className={`text-xl font-semibold ${getPriceChangeColor(selectedStock.currentPrice, selectedStock.previousClose)}`}>
-                                        {formatPercentage(selectedStock.currentPrice, selectedStock.previousClose)}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={closeStockModal}
-                                    className="ml-6 p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                                >
-                                    <X className="w-6 h-6 text-slate-600" />
-                                </button>
                             </div>
-                        </div>
-
-                        {/* Modal Content */}
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                {/* Left Column - Stock Details */}
-                                <div className="space-y-6">
-                                    {/* Key Metrics */}
-                                    <div className="bg-slate-50 rounded-xl p-6">
-                                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Key Metrics</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-sm text-slate-500 font-medium">Quantity</p>
-                                                <p className="text-lg font-semibold text-slate-700">{selectedStock.quantity !== undefined ? selectedStock.quantity : 'N/A'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-slate-500 font-medium">Average Price</p>
-                                                <p className="text-lg font-semibold text-slate-700">₹{selectedStock.averagePrice?.toFixed(2) || 'N/A'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-slate-500 font-medium">Invested Amount</p>
-                                                <p className="text-lg font-semibold text-slate-700">₹{selectedStock.investedAmount?.toFixed(2) || 'N/A'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-slate-500 font-medium">Current Value</p>
-                                                <p className="text-lg font-semibold text-slate-700">₹{selectedStock.currentValue?.toFixed(2) || 'N/A'}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* 52 Week Range */}
-                                    <div className="bg-slate-50 rounded-xl p-6">
-                                        <h3 className="text-lg font-semibold text-slate-900 mb-4">52 Week Range</h3>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-slate-600">Low</span>
-                                                <span className="text-lg font-semibold text-red-600">{selectedStock.fiftyTwoWeekLow}</span>
-                                            </div>
-                                            <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-red-500 to-green-500"
-                                                    style={{
-                                                        width: `${((selectedStock.currentPrice - selectedStock.fiftyTwoWeekLow) / (selectedStock.fiftyTwoWeekHigh - selectedStock.fiftyTwoWeekLow)) * 100}%`
-                                                    }}
-                                                ></div>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-slate-600">High</span>
-                                                <span className="text-lg font-semibold text-green-600">{selectedStock.fiftyTwoWeekHigh}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-slate-50 rounded-xl p-6 mt-6">
-                                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Predicted Price</h3>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-md text-slate-600">Q4' 27</span>
-                                            <span className="text-lg font-semibold text-blue-600">
-                                                ₹{predictedData[selectedStock.symbol]?.[0]?.Close || "N/A"}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Performance Summary removed; backend-derived metrics no longer used */}
-                                </div>
-
-                                {/* Right Column - Chart */}
-                                <div className="space-y-6">
-                                    {/* Chart */}
-                                    <div className="bg-white border border-slate-200 rounded-xl p-6">
-                                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Price Chart</h3>
-                                        {(() => {
-                                            const resolved = getLocalSeriesForStock(selectedStock);
-                                            if (resolved && resolved.series) {
-                                                const dates = resolved.series.dates;
-                                                const prices = resolved.series.history;
-
-                                                const chartData = {
-                                                    labels: dates,
-                                                    datasets: [
-                                                        {
-                                                            label: `${resolved.key} Closing Price`,
-                                                            data: prices,
-                                                            borderColor: "#3b82f6",
-                                                            backgroundColor: "rgba(59, 130, 246, 0.1)",
-                                                            fill: true,
-                                                            tension: 0.4,
-                                                            pointRadius: 0,
-                                                            pointHoverRadius: 4,
-                                                        },
-                                                    ],
-                                                };
-
-                                                return (
-                                                    <div className="h-80">
-                                                        <Line
-                                                            data={chartData}
-                                                            options={{
-                                                                responsive: true,
-                                                                maintainAspectRatio: false,
-                                                                plugins: {
-                                                                    legend: { display: false },
-                                                                    tooltip: {
-                                                                        mode: "index",
-                                                                        intersect: false,
-                                                                        backgroundColor: "rgba(0, 0, 0, 0.8)",
-                                                                        titleColor: "white",
-                                                                        bodyColor: "white",
-                                                                    },
-                                                                },
-                                                                scales: {
-                                                                    x: {
-                                                                        grid: { color: "rgba(0,0,0,0.1)" },
-                                                                        ticks: { color: "#64748b" },
-                                                                    },
-                                                                    y: {
-                                                                        grid: { color: "rgba(0,0,0,0.1)" },
-                                                                        ticks: { color: "#64748b" },
-                                                                    },
-                                                                },
-                                                            }}
-                                                        />
-                                                    </div>
-                                                );
-                                            }
-
-                                            return (
-                                                <div className="h-80 flex items-center justify-center bg-slate-50 rounded-lg">
-                                                    <div className="text-center">
-                                                        <X className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                                                        <p className="text-slate-500">No chart data found in local file for this symbol.</p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-
-                                    </div>
-
-                                    {/* Additional Info */}
-                                    <div className="bg-slate-50 rounded-xl p-6">
-                                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Additional Information</h3>
-                                        <div className="space-y-3 text-sm">
-                                            <div className="flex justify-between">
-                                                <span className="text-slate-600">Exchange</span>
-                                                <span className="font-medium text-slate-900">NSE</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-slate-600">Last Updated</span>
-                                                <span className="font-medium text-slate-900">{new Date().toLocaleString()}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="bg-slate-50 rounded-3xl p-6 h-[400px]">
+                                {(() => {
+                                    const resolved = getLocalSeriesForStock(selectedStock);
+                                    if (resolved && resolved.series) {
+                                        return (
+                                            <Line 
+                                                data={{
+                                                    labels: resolved.series.dates,
+                                                    datasets: [{
+                                                        data: resolved.series.history,
+                                                        borderColor: "#4f46e5",
+                                                        backgroundColor: "rgba(79, 70, 229, 0.1)",
+                                                        fill: true,
+                                                        tension: 0.4,
+                                                        pointRadius: 0
+                                                    }]
+                                                }}
+                                                options={{
+                                                    responsive: true,
+                                                    maintainAspectRatio: false,
+                                                    plugins: { legend: { display: false } },
+                                                    scales: { x: { display: false }, y: { position: 'right', grid: { display: false } } }
+                                                }}
+                                            />
+                                        );
+                                    }
+                                    return <div className="h-full flex items-center justify-center text-slate-400">Loading chart...</div>;
+                                })()}
                             </div>
                         </div>
                     </div>
                 </div>
             )}
-            {/* Angel One Portfolio Section */}
-            <div className="mb-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-[#FF6B00] rounded-xl shadow-lg">
-                        <BarChart3 className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-900">Angel One Portfolio</h2>
-                        <p className="text-slate-500 text-sm">Your Angel One SmartAPI holdings</p>
-                    </div>
-                </div>
-
-                {!angelOneConnected ? (
-                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-100 p-12 text-center">
-                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <ExternalLink className="w-8 h-8 text-slate-400" />
-                        </div>
-                        <h3 className="text-xl font-semibold text-slate-800 mb-2">Angel One Not Connected</h3>
-                        <p className="text-slate-500 max-w-md mx-auto mb-6">
-                            Link your Angel One SmartAPI account from Settings to view and track your holdings here.
-                        </p>
-                        <a
-                            href="/home/profile"
-                            onClick={(e) => { e.preventDefault(); window.location.href = '/home/profile'; }}
-                            className="inline-flex items-center gap-2 bg-[#FF6B00] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#E66000] transition-colors"
-                        >
-                            <ExternalLink className="w-4 h-4" />
-                            Go to Settings
-                        </a>
-                    </div>
-                ) : angelOneLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                        <span className="ml-2 text-orange-600">Loading Angel One portfolio...</span>
-                    </div>
-                ) : angelOneError ? (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-                        <p className="text-red-700"><strong>Error:</strong> {angelOneError}</p>
-                        <button onClick={fetchAngelOneHoldings} className="mt-3 text-sm text-red-600 underline">Retry</button>
-                    </div>
-                ) : angelOneHoldings.length === 0 ? (
-                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-100 p-12 text-center">
-                        <Building2 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-slate-700 mb-2">No Holdings Found</h3>
-                        <p className="text-slate-500">Your Angel One account has no holdings yet.</p>
-                    </div>
-                ) : (
-                    <>
-                        {/* Angel One Summary */}
-                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 p-6 mb-6">
-                            <h3 className="text-lg font-bold text-slate-900 mb-4">Angel One Overview</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
-                                    <p className="text-sm text-orange-600 font-medium">Total Value</p>
-                                    <p className="text-xl font-bold text-orange-800">₹{angelOneSummary.total_current_value?.toFixed(2)}</p>
-                                </div>
-                                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-xl border border-yellow-200">
-                                    <p className="text-sm text-yellow-600 font-medium">Invested</p>
-                                    <p className="text-xl font-bold text-yellow-800">₹{angelOneSummary.total_invested?.toFixed(2)}</p>
-                                </div>
-                                <div className={`bg-gradient-to-br p-4 rounded-xl border ${angelOneSummary.total_pnl >= 0 ? 'from-green-50 to-green-100 border-green-200' : 'from-red-50 to-red-100 border-red-200'}`}>
-                                    <p className={`text-sm font-medium ${angelOneSummary.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>P&L</p>
-                                    <p className={`text-xl font-bold ${angelOneSummary.total_pnl >= 0 ? 'text-green-800' : 'text-red-800'}`}>
-                                        {angelOneSummary.total_pnl >= 0 ? '+' : ''}₹{angelOneSummary.total_pnl?.toFixed(2)}
-                                    </p>
-                                    <p className={`text-xs ${angelOneSummary.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        {angelOneSummary.total_pnl_percent?.toFixed(2)}%
-                                    </p>
-                                </div>
-                                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-                                    <p className="text-sm text-purple-600 font-medium">Holdings</p>
-                                    <p className="text-xl font-bold text-purple-800">{angelOneHoldings.length}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Holdings Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {angelOneHoldings.map((holding, idx) => (
-                                <div key={idx} className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5 hover:shadow-xl transition-shadow">
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div>
-                                            <h4 className="font-bold text-slate-900 text-lg">{holding.name || holding.symbol}</h4>
-                                            <p className="text-xs text-slate-500 font-medium">{holding.symbol} · {holding.exchange}</p>
-                                        </div>
-                                        <span className={`text-sm font-bold px-2 py-1 rounded-lg ${holding.pnl >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {holding.pnl >= 0 ? '+' : ''}{holding.pnlPercent?.toFixed(2)}%
-                                        </span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div>
-                                            <p className="text-slate-500">Current Price</p>
-                                            <p className="font-semibold text-slate-800">₹{holding.currentPrice?.toFixed(2)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-slate-500">Avg Price</p>
-                                            <p className="font-semibold text-slate-800">₹{holding.averagePrice?.toFixed(2)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-slate-500">Qty</p>
-                                            <p className="font-semibold text-slate-800">{holding.quantity}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-slate-500">P&L</p>
-                                            <p className={`font-semibold ${holding.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {holding.pnl >= 0 ? '+' : ''}₹{holding.pnl?.toFixed(2)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
         </div>
     );
 };
