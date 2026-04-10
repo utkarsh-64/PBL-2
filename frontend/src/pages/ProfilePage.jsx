@@ -697,7 +697,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50">
+    <div className="flex-1 overflow-y-auto bg-slate-50">
       {/* Cover Photo with Pattern */}
       <div className="h-64 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/profile-header-bg.jpg')] opacity-30"></div>
