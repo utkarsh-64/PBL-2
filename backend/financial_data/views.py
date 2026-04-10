@@ -1099,8 +1099,13 @@ def get_stock_data(request):
         stock_data = {}
         for symbol in stock_symbols:
             try:
-                print(f"🔍 Backend: Fetching chart data for {symbol}")
-                stock = yf.Ticker(symbol)
+                # Format symbol for Yahoo Finance (.NS for Indian markets)
+                yf_symbol = symbol.strip().upper()
+                if "." not in yf_symbol:
+                    yf_symbol = f"{yf_symbol}.NS"
+                
+                print(f"🔍 Backend: Fetching chart data for {yf_symbol} (original: {symbol})")
+                stock = yf.Ticker(yf_symbol)
                 
                 # Fetch data for different time periods
                 periods = {
@@ -1209,7 +1214,12 @@ def get_stock_predictions(request):
         predictions = {}
         for symbol in symbols:
             try:
-                stock_ticker = yf.Ticker(symbol)
+                # Format symbol for Yahoo Finance (.NS for Indian markets)
+                yf_symbol = symbol.strip().upper()
+                if "." not in yf_symbol:
+                    yf_symbol = f"{yf_symbol}.NS"
+                    
+                stock_ticker = yf.Ticker(yf_symbol)
                 history = stock_ticker.history(period="5d")
                 if not history.empty:
                     current_price = history["Close"].iloc[-1]
