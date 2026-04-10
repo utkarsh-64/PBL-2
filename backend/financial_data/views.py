@@ -79,16 +79,17 @@ def angelone_callback(request):
                     "X-PrivateKey": ANGELONE_API_KEY,
                 }
                 profile_res = http_requests.get(profile_url, headers=profile_headers, timeout=10)
-                if profile_res.ok:
+                if profile_res.ok and 'application/json' in profile_res.headers.get('content-type', ''):
                     profile_data = profile_res.json()
-                    client_code = (
-                        profile_data.get('data', {}).get('clientcode') or
-                        profile_data.get('data', {}).get('client_code') or
-                        profile_data.get('data', {}).get('userId') or ''
-                    )
-                    print(f"Fetched Angel One client_code: {client_code}")
+                    if isinstance(profile_data, dict):
+                        client_code = (
+                            profile_data.get('data', {}).get('clientcode') or
+                            profile_data.get('data', {}).get('client_code') or
+                            profile_data.get('data', {}).get('userId') or ''
+                        )
+                        print(f"Fetched Angel One client_code: {client_code}")
                 else:
-                    print(f"Angel One profile fetch failed: {profile_res.status_code} {profile_res.text[:200]}")
+                    print(f"Angel One profile fetch failed: {profile_res.status_code}")
             except Exception as profile_err:
                 print(f"Could not fetch Angel One profile: {profile_err}")
 
@@ -166,15 +167,16 @@ def get_angelone_holdings(request):
                 )
                 if profile_res.ok and 'application/json' in profile_res.headers.get('content-type', ''):
                     pd = profile_res.json()
-                    client_code = (
-                        pd.get('data', {}).get('clientcode') or
-                        pd.get('data', {}).get('client_code') or
-                        pd.get('data', {}).get('userId') or ''
-                    )
-                    if client_code:
-                        angelone_user.client_code = client_code
-                        angelone_user.save(update_fields=['client_code'])
-                        print(f"Auto-resolved Angel One client_code: {client_code}")
+                    if isinstance(pd, dict):
+                        client_code = (
+                            pd.get('data', {}).get('clientcode') or
+                            pd.get('data', {}).get('client_code') or
+                            pd.get('data', {}).get('userId') or ''
+                        )
+                        if client_code:
+                            angelone_user.client_code = client_code
+                            angelone_user.save(update_fields=['client_code'])
+                            print(f"Auto-resolved Angel One client_code: {client_code}")
             except Exception as ce:
                 print(f"Could not resolve client_code from profile: {ce}")
 
@@ -201,6 +203,10 @@ def get_angelone_holdings(request):
             )
 
         data = response.json()
+
+        if not isinstance(data, dict):
+            print(f"❌ Angel One Error: Returned {type(data)} instead of dict: {data}")
+            return Response({"error": f"Angel One returned invalid format: {str(data)[:100]}"}, status=status.HTTP_502_BAD_GATEWAY)
 
         if not response.ok or not data.get('status'):
             error_msg = data.get('message', f'Angel One API error: HTTP {response.status_code}')
