@@ -42,6 +42,47 @@ class ZerodhaUser(models.Model):
     class Meta:
         db_table = 'zerodha_user'
 
+class AngelOneUser(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='angelone_user')
+    # Stored encrypted
+    _auth_token = models.TextField(db_column='auth_token')
+    _feed_token = models.TextField(blank=True, null=True, db_column='feed_token')
+    _refresh_token = models.TextField(blank=True, null=True, db_column='refresh_token')
+
+    @property
+    def auth_token(self) -> str:
+        return decrypt_token(self._auth_token)
+
+    @auth_token.setter
+    def auth_token(self, value: str):
+        self._auth_token = encrypt_token(value)
+
+    @property
+    def feed_token(self):
+        return decrypt_token(self._feed_token) if self._feed_token else None
+
+    @feed_token.setter
+    def feed_token(self, value):
+        self._feed_token = encrypt_token(value) if value else None
+
+    @property
+    def refresh_token(self):
+        return decrypt_token(self._refresh_token) if self._refresh_token else None
+
+    @refresh_token.setter
+    def refresh_token(self, value):
+        self._refresh_token = encrypt_token(value) if value else None
+
+    client_code = models.CharField(max_length=100, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} - AngelOne ({self.client_code or 'Unknown'})"
+
+    class Meta:
+        db_table = 'angelone_user'
+
 class RiskProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='risk_profile')
     risk_score = models.FloatField()
