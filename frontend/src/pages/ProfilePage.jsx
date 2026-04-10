@@ -24,7 +24,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import RiskProfileChart from "../components/dashboard/RiskProfileChart";
 import { zerodhaService } from "../services/zerodhaService";
 import { angelOneService } from "../services/angelOneService";
 import { useDispatch, useSelector } from "react-redux";
