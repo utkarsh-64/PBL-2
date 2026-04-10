@@ -152,7 +152,7 @@ const FinancePage = () => {
     };
 
     return (
-        <div className="w-[80%] h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
             <div className="w-full max-w-none p-6 overflow-y-auto" >
                 {/* Header */}
                 <div className="mb-8 flex items-center gap-3">
