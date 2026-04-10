@@ -51,15 +51,41 @@ def get_angelone_login_url(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def angelone_callback(request):
-    """Callback for Angel One authentications — saves tokens to DB"""
+    """Callback for Angel One — saves tokens and fetches client_code via profile API"""
+    import requests as http_requests
     try:
         auth_token = request.data.get('auth_token')
         feed_token = request.data.get('feed_token')
-        refresh_token = request.data.get('refresh_token')
+        refresh_token = request.data.get('refresh_token', '')
+        # client_code may be sent by frontend if available, otherwise we fetch it
         client_code = request.data.get('client_code', '')
 
         if not auth_token:
             return Response({"error": "Missing auth token from payload"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # If client_code not provided, fetch it from Angel One's user profile endpoint
+        if not client_code:
+            try:
+                profile_url = "https://apiconnect.angelone.in/rest/secure/angelbroking/user/v1/getProfile"
+                profile_headers = {
+                    "Authorization": f"Bearer {auth_token}",
+                    "x-api-key": ANGELONE_API_KEY,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                }
+                profile_res = http_requests.get(profile_url, headers=profile_headers, timeout=10)
+                if profile_res.ok:
+                    profile_data = profile_res.json()
+                    client_code = (
+                        profile_data.get('data', {}).get('clientcode') or
+                        profile_data.get('data', {}).get('client_code') or
+                        profile_data.get('data', {}).get('userId') or ''
+                    )
+                    print(f"Fetched Angel One client_code: {client_code}")
+                else:
+                    print(f"Angel One profile fetch failed: {profile_res.status_code} {profile_res.text[:200]}")
+            except Exception as profile_err:
+                print(f"Could not fetch Angel One profile: {profile_err}")
 
         # Save or update AngelOneUser record
         from django.db import OperationalError, ProgrammingError
@@ -72,7 +98,6 @@ def angelone_callback(request):
             angelone_user.save()
         except (OperationalError, ProgrammingError) as db_err:
             print(f"AngelOne callback DB error: {db_err}")
-            # Tokens received but couldn't be saved — still return success so UI flow continues
             return Response({
                 "message": "Login successful. Token storage pending migration.",
                 "status": "success"
@@ -80,7 +105,8 @@ def angelone_callback(request):
 
         return Response({
             "message": "Login successful. Angel One session securely saved.",
-            "status": "success"
+            "status": "success",
+            "client_code": client_code
         })
     except Exception as e:
         print(f"Error in angelone_callback: {str(e)}")
@@ -110,6 +136,33 @@ def get_angelone_holdings(request):
         if not auth_token:
             return Response({"error": "Angel One auth token missing. Please reconnect."}, status=status.HTTP_401_UNAUTHORIZED)
 
+        # If client_code is missing, try fetching it from Angel One profile
+        if not client_code:
+            try:
+                profile_res = http_requests.get(
+                    "https://apiconnect.angelone.in/rest/secure/angelbroking/user/v1/getProfile",
+                    headers={
+                        "Authorization": f"Bearer {auth_token}",
+                        "x-api-key": ANGELONE_API_KEY,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    timeout=10
+                )
+                if profile_res.ok and 'application/json' in profile_res.headers.get('content-type', ''):
+                    pd = profile_res.json()
+                    client_code = (
+                        pd.get('data', {}).get('clientcode') or
+                        pd.get('data', {}).get('client_code') or
+                        pd.get('data', {}).get('userId') or ''
+                    )
+                    if client_code:
+                        angelone_user.client_code = client_code
+                        angelone_user.save(update_fields=['client_code'])
+                        print(f"Auto-resolved Angel One client_code: {client_code}")
+            except Exception as ce:
+                print(f"Could not resolve client_code from profile: {ce}")
+
         url = "https://apiconnect.angelone.in/rest/secure/angelbroking/portfolio/v1/getHolding"
         headers = {
             "Authorization": f"Bearer {auth_token}",
@@ -120,6 +173,14 @@ def get_angelone_holdings(request):
         }
 
         response = http_requests.get(url, headers=headers, timeout=10)
+
+        # Safe parse — Angel One may return HTML on auth errors
+        if 'application/json' not in response.headers.get('content-type', ''):
+            return Response(
+                {"error": f"Angel One returned unexpected response (HTTP {response.status_code}). Please reconnect your account from Settings."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
         data = response.json()
 
         if not response.ok or not data.get('status'):
