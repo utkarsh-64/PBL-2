@@ -17,6 +17,9 @@ const FinancePage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [stocksData, setStocksData] = useState({});
     const [predictedData, setPredictedData] = useState({});
+    const [angelOneConnected] = useState(
+        () => sessionStorage.getItem('angelone_connected') === 'true'
+    );
 
     // Fetch user's stock holdings from Zerodha
     const fetchUserStocks = async () => {
@@ -161,7 +164,7 @@ const FinancePage = () => {
                             My Portfolio Dashboard
                         </h1>
                         <p className="text-slate-600 text-lg mt-1">
-                            Track your Zerodha investments and get real-time market insights
+                            Track your Zerodha &amp; Angel One investments and get real-time market insights
                         </p>
                     </div>
                 </div>
@@ -580,6 +583,48 @@ const FinancePage = () => {
                     </div>
                 </div>
             )}
+            {/* Angel One Portfolio Section */}
+            <div className="mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-[#FF6B00] rounded-xl shadow-lg">
+                        <BarChart3 className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900">Angel One Portfolio</h2>
+                        <p className="text-slate-500 text-sm">Your Angel One SmartAPI holdings</p>
+                    </div>
+                </div>
+
+                {angelOneConnected ? (
+                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-orange-100 p-12 text-center">
+                        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Loader2 className="w-8 h-8 text-orange-500" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-slate-800 mb-2">Portfolio Sync Pending</h3>
+                        <p className="text-slate-500 max-w-md mx-auto">
+                            Your Angel One account is connected. Live holdings sync will be available once the backend portfolio pipeline is activated.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-100 p-12 text-center">
+                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <ExternalLink className="w-8 h-8 text-slate-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-slate-800 mb-2">Angel One Not Connected</h3>
+                        <p className="text-slate-500 max-w-md mx-auto mb-6">
+                            Link your Angel One SmartAPI account from Settings to view and track your holdings here.
+                        </p>
+                        <a
+                            href="/home/profile"
+                            onClick={(e) => { e.preventDefault(); window.location.href = '/home/profile'; }}
+                            className="inline-flex items-center gap-2 bg-[#FF6B00] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#E66000] transition-colors"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            Go to Settings
+                        </a>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
