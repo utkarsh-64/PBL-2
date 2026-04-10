@@ -42,8 +42,8 @@ const ParentComponentContent = ({ userData }) => {
           </div>
         </div>
 
-        {/* Main Content — scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Main Content — flex container so child pages control their own layout */}
+        <div className="flex-1 flex overflow-hidden">
           <Outlet />
         </div>
       </div>
