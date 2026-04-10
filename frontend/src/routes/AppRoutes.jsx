@@ -9,6 +9,7 @@ import DashboardPage from "../pages/DashboardPage";
 import ProtectedRoute from "./ProtectedRoute";
 import OAuthCallback from "../pages/OAuthCallback";
 import ZerodhaCallback from "../pages/ZerodhaCallback";
+import AngelOneCallback from "../pages/AngelOneCallback";
 import ProfilePage from "../pages/ProfilePage";
 import ParentComponent from "../components/main/ParentComponent";
 import ChatPage from "../pages/ChatPage";
@@ -88,6 +89,7 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<OAuthCallback />} />
         <Route path="/zerodha/callback" element={<ZerodhaCallback />} />
+        <Route path="/angelone/callback" element={<AngelOneCallback />} />
         <Route
           path="/dashboard"
           element={
