@@ -118,6 +118,11 @@ def angelone_callback(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
+def ping(request):
+    return Response({"status": "ok", "version": "angelone-v3"})
+
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_angelone_holdings(request):
     """Fetch live holdings from Angel One REST API"""

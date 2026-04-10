@@ -15,4 +15,6 @@ urlpatterns = [
     path("stocks/predictions/", views.get_stock_predictions, name="get_stock_predictions"),
     path('angelone/login-url/', views.get_angelone_login_url, name='angelone_login_url'),
     path('angelone/callback/', views.angelone_callback, name='angelone_callback'),
+    path('angelone/holdings/', views.get_angelone_holdings, name='angelone_holdings'),
+    path('ping/', views.ping, name='ping'),
 ]

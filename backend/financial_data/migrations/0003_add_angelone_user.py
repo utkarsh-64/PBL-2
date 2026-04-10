@@ -13,9 +13,9 @@ class Migration(migrations.Migration):
             name='AngelOneUser',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('auth_token', models.TextField(db_column='auth_token')),
-                ('feed_token', models.TextField(blank=True, db_column='feed_token', null=True)),
-                ('refresh_token', models.TextField(blank=True, db_column='refresh_token', null=True)),
+                ('_auth_token', models.TextField(db_column='auth_token')),
+                ('_feed_token', models.TextField(blank=True, db_column='feed_token', null=True)),
+                ('_refresh_token', models.TextField(blank=True, db_column='refresh_token', null=True)),
                 ('client_code', models.CharField(blank=True, max_length=100, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
