@@ -133,6 +133,16 @@ const FinancePage = () => {
                 credentials: 'include',
             });
 
+            // Guard against HTML error pages (500/404 from server before JSON middleware)
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error(
+                    response.status === 503
+                        ? 'Backend is still deploying. Please retry in a moment.'
+                        : `Backend returned an unexpected response (HTTP ${response.status}). Please reconnect Angel One from Settings.`
+                );
+            }
+
             const result = await response.json();
 
             if (!response.ok) {
