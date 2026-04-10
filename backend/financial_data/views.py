@@ -215,15 +215,20 @@ def get_angelone_holdings(request):
             return Response({"error": error_msg}, status=status.HTTP_502_BAD_GATEWAY)
 
         holdings = data.get('data')
+        
+        # DEBUG: Print the structure to logs so we can confirm it
+        print(f"🔍 Angel One Data Structure: {type(holdings)}")
+        if isinstance(holdings, dict):
+            print(f"🔍 Angel One Data Keys: {list(holdings.keys())}")
+            # getAllHolding returns a dict with a 'holdings' key
+            holdings = holdings.get('holdings', [])
+            
         if not isinstance(holdings, list):
-            # If data is present but not a list, it's usually an error string or None
-            # If there are no holdings, AngelOne usually returns an empty list, but we should be safe
-            if not holdings:
-                holdings = []
-            else:
-                return Response({
-                    "error": f"Angel One returned unexpected data format for holdings: {type(holdings)}"
-                }, status=status.HTTP_502_BAD_GATEWAY)
+            # If we still don't have a list, return a clear error
+            return Response({
+                "error": f"Angel One returned unexpected data format: {type(holdings)}. Please check backend logs.",
+                "response_keys": list(data.keys()) if isinstance(data, dict) else "not-a-dict"
+            }, status=status.HTTP_502_BAD_GATEWAY)
 
         # Normalise fields to match Zerodha holdings format for the frontend
         normalized = []
