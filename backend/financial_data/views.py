@@ -1,28 +1,26 @@
 import os
+import json
+import pandas as pd
+import yfinance as yf
+import requests as http_requests
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
+from django.db import OperationalError, ProgrammingError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from kiteconnect import KiteConnect
-from .models import ZerodhaUser, AngelOneUser
-from .models import RiskProfile
-from .stocks_list import stocks
-from django.utils import timezone
-from datetime import datetime, timedelta
-import yfinance as yf
-import json
 
 from config import SITE_URL, KITE_API_KEY, KITE_API_SECRET, ANGELONE_API_KEY
-from financial_data.encryption import encrypt_token, decrypt_token
-import yfinance as yf
-import pandas as pd
-from datetime import datetime
-import json
+from .models import ZerodhaUser, AngelOneUser, RiskProfile
+from .encryption import encrypt_token, decrypt_token
+from .stocks_list import stocks
 
 if not KITE_API_KEY or not KITE_API_SECRET:
     raise Exception("Please set KITE_API_KEY and KITE_API_SECRET in your environment variables.")
@@ -82,11 +80,14 @@ def angelone_callback(request):
                 if profile_res.ok and 'application/json' in profile_res.headers.get('content-type', ''):
                     profile_data = profile_res.json()
                     if isinstance(profile_data, dict):
-                        client_code = (
-                            profile_data.get('data', {}).get('clientcode') or
-                            profile_data.get('data', {}).get('client_code') or
-                            profile_data.get('data', {}).get('userId') or ''
-                        )
+                        # Extract data dict safely
+                        inner_data = profile_data.get('data')
+                        if isinstance(inner_data, dict):
+                            client_code = (
+                                inner_data.get('clientcode') or
+                                inner_data.get('client_code') or
+                                inner_data.get('userId') or ''
+                            )
                         print(f"Fetched Angel One client_code: {client_code}")
                 else:
                     print(f"Angel One profile fetch failed: {profile_res.status_code}")
@@ -94,7 +95,6 @@ def angelone_callback(request):
                 print(f"Could not fetch Angel One profile: {profile_err}")
 
         # Save or update AngelOneUser record
-        from django.db import OperationalError, ProgrammingError
         try:
             angelone_user, created = AngelOneUser.objects.get_or_create(user=request.user)
             angelone_user.auth_token = auth_token
@@ -168,11 +168,13 @@ def get_angelone_holdings(request):
                 if profile_res.ok and 'application/json' in profile_res.headers.get('content-type', ''):
                     pd = profile_res.json()
                     if isinstance(pd, dict):
-                        client_code = (
-                            pd.get('data', {}).get('clientcode') or
-                            pd.get('data', {}).get('client_code') or
-                            pd.get('data', {}).get('userId') or ''
-                        )
+                        inner_p = pd.get('data')
+                        if isinstance(inner_p, dict):
+                            client_code = (
+                                inner_p.get('clientcode') or
+                                inner_p.get('client_code') or
+                                inner_p.get('userId') or ''
+                            )
                         if client_code:
                             angelone_user.client_code = client_code
                             angelone_user.save(update_fields=['client_code'])
@@ -212,13 +214,25 @@ def get_angelone_holdings(request):
             error_msg = data.get('message', f'Angel One API error: HTTP {response.status_code}')
             return Response({"error": error_msg}, status=status.HTTP_502_BAD_GATEWAY)
 
-        holdings = data.get('data', [])
+        holdings = data.get('data')
+        if not isinstance(holdings, list):
+            # If data is present but not a list, it's usually an error string or None
+            # If there are no holdings, AngelOne usually returns an empty list, but we should be safe
+            if not holdings:
+                holdings = []
+            else:
+                return Response({
+                    "error": f"Angel One returned unexpected data format for holdings: {type(holdings)}"
+                }, status=status.HTTP_502_BAD_GATEWAY)
 
         # Normalise fields to match Zerodha holdings format for the frontend
         normalized = []
         total_invested = 0
         total_current = 0
         for h in holdings:
+            if not isinstance(h, dict):
+                continue
+                
             avg_price = float(h.get('averageprice', 0) or 0)
             ltp = float(h.get('ltp', 0) or 0)
             qty = float(h.get('quantity', 0) or 0)
