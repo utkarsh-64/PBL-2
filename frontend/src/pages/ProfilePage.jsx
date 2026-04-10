@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   User,
   Briefcase,
@@ -38,6 +39,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
   const [activeTab, setActiveTab] = useState("personal");
+  const location = useLocation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [zerodhaStatus, setZerodhaStatus] = useState({
     connected: false,
@@ -50,6 +52,13 @@ export default function ProfilePage() {
     () => sessionStorage.getItem('angelone_connected') === 'true'
   );
 
+  // Read tab from router state (e.g. when Settings sidebar nav clicked)
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
+
   // Hash navigation effect
   useEffect(() => {
     const handleHashChange = () => {
@@ -60,15 +69,9 @@ export default function ProfilePage() {
       }
     };
 
-    // Set initial tab from hash
     handleHashChange();
-
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   // Update hash when tab changes
