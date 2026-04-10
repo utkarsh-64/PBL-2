@@ -121,6 +121,7 @@ function AppRoutes() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="learn" element={<LearnPage />} />
           <Route path="finance" element={<FinancePage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </div>
