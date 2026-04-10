@@ -69,9 +69,14 @@ def angelone_callback(request):
                 profile_url = "https://apiconnect.angelone.in/rest/secure/angelbroking/user/v1/getProfile"
                 profile_headers = {
                     "Authorization": f"Bearer {auth_token}",
-                    "x-api-key": ANGELONE_API_KEY,
                     "Content-Type": "application/json",
                     "Accept": "application/json",
+                    "X-UserType": "USER",
+                    "X-SourceID": "WEB",
+                    "X-ClientLocalIP": "127.0.0.1",
+                    "X-ClientPublicIP": "127.0.0.1",
+                    "X-MACAddress": "00:00:00:00:00:00",
+                    "X-PrivateKey": ANGELONE_API_KEY,
                 }
                 profile_res = http_requests.get(profile_url, headers=profile_headers, timeout=10)
                 if profile_res.ok:
@@ -143,9 +148,14 @@ def get_angelone_holdings(request):
                     "https://apiconnect.angelone.in/rest/secure/angelbroking/user/v1/getProfile",
                     headers={
                         "Authorization": f"Bearer {auth_token}",
-                        "x-api-key": ANGELONE_API_KEY,
                         "Content-Type": "application/json",
                         "Accept": "application/json",
+                        "X-UserType": "USER",
+                        "X-SourceID": "WEB",
+                        "X-ClientLocalIP": "127.0.0.1",
+                        "X-ClientPublicIP": "127.0.0.1",
+                        "X-MACAddress": "00:00:00:00:00:00",
+                        "X-PrivateKey": ANGELONE_API_KEY,
                     },
                     timeout=10
                 )
@@ -163,13 +173,17 @@ def get_angelone_holdings(request):
             except Exception as ce:
                 print(f"Could not resolve client_code from profile: {ce}")
 
-        url = "https://apiconnect.angelone.in/rest/secure/angelbroking/portfolio/v1/getHolding"
+        url = "https://apiconnect.angelone.in/rest/secure/angelbroking/portfolio/v1/getAllHolding"
         headers = {
             "Authorization": f"Bearer {auth_token}",
-            "x-api-key": ANGELONE_API_KEY,
-            "x-client-code": client_code,
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "X-UserType": "USER",
+            "X-SourceID": "WEB",
+            "X-ClientLocalIP": "127.0.0.1",
+            "X-ClientPublicIP": "127.0.0.1",
+            "X-MACAddress": "00:00:00:00:00:00",
+            "X-PrivateKey": ANGELONE_API_KEY,
         }
 
         response = http_requests.get(url, headers=headers, timeout=10)
