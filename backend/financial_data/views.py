@@ -39,7 +39,8 @@ def get_angelone_login_url(request):
             return Response({"error": "Angel One API Key not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
         client_id = request.GET.get('client_id', '')
-        login_url = f"https://smartapi.angelbroking.com/publisher-login?api_key={ANGELONE_API_KEY}"
+        redirect_url = f"{SITE_URL}/angelone/callback"
+        login_url = f"https://smartapi.angelone.in/publisher-login?api_key={ANGELONE_API_KEY}&redirect_url={redirect_url}"
         
         return Response({"login_url": login_url})
     except Exception as e:
