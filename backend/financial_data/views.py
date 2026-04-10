@@ -17,13 +17,33 @@ from datetime import datetime, timedelta
 import yfinance as yf
 import json
 
-from config import KITE_API_KEY, KITE_API_SECRET
+from config import SITE_URL, KITE_API_KEY, KITE_API_SECRET, ANGELONE_API_KEY
+from financial_data.encryption import encrypt_token, decrypt_token
+import yfinance as yf
+import pandas as pd
+from datetime import datetime
+import json
 
 if not KITE_API_KEY or not KITE_API_SECRET:
     raise Exception("Please set KITE_API_KEY and KITE_API_SECRET in your environment variables.")
 
 # Initialize KiteConnect with redirect URL
 kite = KiteConnect(api_key=KITE_API_KEY)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_angelone_login_url(request):
+    """Generate Angel One Publisher Login URL"""
+    try:
+        if not ANGELONE_API_KEY:
+            return Response({"error": "Angel One API Key not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+        client_id = request.GET.get('client_id', '')
+        login_url = f"https://smartapi.angelbroking.com/publisher-login?api_key={ANGELONE_API_KEY}"
+        
+        return Response({"login_url": login_url})
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def is_token_expired(zerodha_user):
     """Check if access token is expired based on update time"""
@@ -776,8 +796,27 @@ def get_stock_details(request):
                 stocks_data.append(stock_info)
             except Exception as e:
                 print(f"⚠️ yfinance error for {symbol}: {e}")
-                import traceback
-                traceback.print_exc()
+                
+                 # Fallback: Forward the Zerodha portfolio data even if Yahoo Finance fails
+                fallback_symbol = symbol_mapping.get(symbol, symbol)
+                stock_info = {
+                    "symbol": symbol,
+                    "originalSymbol": fallback_symbol,
+                    "longName": fallback_symbol,
+                    "sector": "N/A",
+                    "currentPrice": holdings_data.get(symbol, {}).get('last_price', 0),
+                    "previousClose": holdings_data.get(symbol, {}).get('last_price', 0),
+                    "marketCap": 0,
+                    "dayHigh": holdings_data.get(symbol, {}).get('last_price', 0),
+                    "dayLow": holdings_data.get(symbol, {}).get('last_price', 0),
+                    "fiftyTwoWeekHigh": holdings_data.get(symbol, {}).get('last_price', 0),
+                    "fiftyTwoWeekLow": holdings_data.get(symbol, {}).get('last_price', 0),
+                    "quantity": holdings_data.get(symbol, {}).get('quantity', 0),
+                    "averagePrice": holdings_data.get(symbol, {}).get('average_price', 0),
+                    "investedAmount": holdings_data.get(symbol, {}).get('invested_amount', 0),
+                    "currentValue": holdings_data.get(symbol, {}).get('current_value', 0),
+                }
+                stocks_data.append(stock_info)
         
         # Log each stock's data structure
         for i, stock in enumerate(stocks_data):
