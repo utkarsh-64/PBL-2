@@ -24,7 +24,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import RiskProfileChart from "../components/dashboard/RiskProfileChart";
 import { zerodhaService } from "../services/zerodhaService";
+import { angelOneService } from "../services/angelOneService";
 import { useDispatch, useSelector } from "react-redux";
 import { setUserData } from "../redux/slices/userDataSlice";
 import axios from "axios";
@@ -238,6 +240,15 @@ export default function ProfilePage() {
       console.error("Save failed:", error.response?.data || error.message);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus(null), 4000);
+    }
+  };
+
+  const handleAngelOneConnect = async () => {
+    try {
+      const loginUrl = await angelOneService.getLoginUrl(profile.angelOneId || '');
+      window.location.href = loginUrl;
+    } catch (err) {
+      alert("Failed to initiate Angel One connection. Ensure API keys are set in backend.");
     }
   };
 
@@ -519,7 +530,7 @@ export default function ProfilePage() {
                   className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
                 />
                 <button
-                  // TODO: Implement Angel One connecting service
+                  onClick={handleAngelOneConnect}
                   className="bg-[#FF6B00] text-white hover:bg-[#E66000] px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   Connect
