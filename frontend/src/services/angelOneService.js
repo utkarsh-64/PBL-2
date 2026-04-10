@@ -31,6 +31,30 @@ class AngelOneService {
       throw error;
     }
   }
+
+  async handleCallback(auth_token, feed_token, refresh_token) {
+    try {
+      const response = await fetch(`${this.baseUrl}/callback/`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          auth_token,
+          feed_token,
+          refresh_token
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect Angel One account');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('AngelOne handleCallback error:', error);
+      throw error;
+    }
+  }
 }
 
 export const angelOneService = new AngelOneService();
