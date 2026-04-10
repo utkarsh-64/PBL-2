@@ -46,6 +46,9 @@ export default function ProfilePage() {
     error: null
   });
   const [zerodhaUserId, setZerodhaUserId] = useState('');
+  const [angelOneConnected, setAngelOneConnected] = useState(
+    () => sessionStorage.getItem('angelone_connected') === 'true'
+  );
 
   // Hash navigation effect
   useEffect(() => {
@@ -514,27 +517,37 @@ export default function ProfilePage() {
                 <div className="w-10 h-10 bg-[#FF6B00] rounded-lg flex items-center justify-center">
                   <ExternalLink className="w-5 h-5 text-white" />
                 </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h4 className="font-medium text-slate-900">Angel One</h4>
-                    <div className="w-2 h-2 rounded-full bg-slate-300"></div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h4 className="font-medium text-slate-900">Angel One</h4>
+                      <div className={`w-2 h-2 rounded-full ${angelOneConnected ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+                      {angelOneConnected && <span className="text-xs text-green-600 font-medium">Connected</span>}
+                    </div>
+                    <p className="text-sm text-slate-600">{angelOneConnected ? 'Account linked successfully' : 'Connect your trading account'}</p>
                   </div>
-                  <p className="text-sm text-slate-600">Connect your trading account</p>
-                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  placeholder="Client ID"
-                  className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
-                />
-                <button
-                  onClick={handleAngelOneConnect}
-                  className="bg-[#FF6B00] text-white hover:bg-[#E66000] px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Connect
-                </button>
-              </div>
+                {!angelOneConnected ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      placeholder="Client ID"
+                      className="w-32 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
+                    />
+                    <button
+                      onClick={handleAngelOneConnect}
+                      className="bg-[#FF6B00] text-white hover:bg-[#E66000] px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Connect
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { sessionStorage.removeItem('angelone_connected'); setAngelOneConnected(false); }}
+                    className="bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                )}
             </div>
           </div>
 
@@ -677,7 +690,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-full overflow-y-auto bg-slate-50">
       {/* Cover Photo with Pattern */}
       <div className="h-64 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/profile-header-bg.jpg')] opacity-30"></div>
