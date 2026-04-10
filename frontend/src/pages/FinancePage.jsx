@@ -20,6 +20,10 @@ const FinancePage = () => {
     const [angelOneConnected] = useState(
         () => sessionStorage.getItem('angelone_connected') === 'true'
     );
+    const [angelOneHoldings, setAngelOneHoldings] = useState([]);
+    const [angelOneLoading, setAngelOneLoading] = useState(false);
+    const [angelOneError, setAngelOneError] = useState('');
+    const [angelOneSummary, setAngelOneSummary] = useState({});
 
     // Fetch user's stock holdings from Zerodha
     const fetchUserStocks = async () => {
@@ -106,6 +110,47 @@ const FinancePage = () => {
     useEffect(() => {
         fetchUserStocks();
     }, []);
+
+    // Fetch Angel One holdings
+    const fetchAngelOneHoldings = async () => {
+        try {
+            setAngelOneLoading(true);
+            setAngelOneError('');
+
+            let token = localStorage.getItem("token");
+            if (!token) {
+                const cookies = document.cookie.split(';');
+                const tokenCookie = cookies.find(c => c.trim().startsWith('token='));
+                if (tokenCookie) token = tokenCookie.split('=')[1];
+            }
+
+            const headers = { "Content-Type": "application/json" };
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+
+            const response = await fetch(`${API_BASE_URL}/api/financial/angelone/holdings/`, {
+                method: 'GET',
+                headers,
+                credentials: 'include',
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || `HTTP ${response.status}`);
+            }
+
+            setAngelOneHoldings(result.holdings || []);
+            setAngelOneSummary(result.portfolio_summary || {});
+        } catch (err) {
+            setAngelOneError(err.message);
+        } finally {
+            setAngelOneLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (angelOneConnected) fetchAngelOneHoldings();
+    }, [angelOneConnected]);
 
     // Removed selected period logic tied to backend charts
 
@@ -595,17 +640,7 @@ const FinancePage = () => {
                     </div>
                 </div>
 
-                {angelOneConnected ? (
-                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-orange-100 p-12 text-center">
-                        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Loader2 className="w-8 h-8 text-orange-500" />
-                        </div>
-                        <h3 className="text-xl font-semibold text-slate-800 mb-2">Portfolio Sync Pending</h3>
-                        <p className="text-slate-500 max-w-md mx-auto">
-                            Your Angel One account is connected. Live holdings sync will be available once the backend portfolio pipeline is activated.
-                        </p>
-                    </div>
-                ) : (
+                {!angelOneConnected ? (
                     <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-100 p-12 text-center">
                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <ExternalLink className="w-8 h-8 text-slate-400" />
@@ -623,6 +658,89 @@ const FinancePage = () => {
                             Go to Settings
                         </a>
                     </div>
+                ) : angelOneLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                        <span className="ml-2 text-orange-600">Loading Angel One portfolio...</span>
+                    </div>
+                ) : angelOneError ? (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                        <p className="text-red-700"><strong>Error:</strong> {angelOneError}</p>
+                        <button onClick={fetchAngelOneHoldings} className="mt-3 text-sm text-red-600 underline">Retry</button>
+                    </div>
+                ) : angelOneHoldings.length === 0 ? (
+                    <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-100 p-12 text-center">
+                        <Building2 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold text-slate-700 mb-2">No Holdings Found</h3>
+                        <p className="text-slate-500">Your Angel One account has no holdings yet.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Angel One Summary */}
+                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 p-6 mb-6">
+                            <h3 className="text-lg font-bold text-slate-900 mb-4">Angel One Overview</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
+                                    <p className="text-sm text-orange-600 font-medium">Total Value</p>
+                                    <p className="text-xl font-bold text-orange-800">₹{angelOneSummary.total_current_value?.toFixed(2)}</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-xl border border-yellow-200">
+                                    <p className="text-sm text-yellow-600 font-medium">Invested</p>
+                                    <p className="text-xl font-bold text-yellow-800">₹{angelOneSummary.total_invested?.toFixed(2)}</p>
+                                </div>
+                                <div className={`bg-gradient-to-br p-4 rounded-xl border ${angelOneSummary.total_pnl >= 0 ? 'from-green-50 to-green-100 border-green-200' : 'from-red-50 to-red-100 border-red-200'}`}>
+                                    <p className={`text-sm font-medium ${angelOneSummary.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>P&L</p>
+                                    <p className={`text-xl font-bold ${angelOneSummary.total_pnl >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                                        {angelOneSummary.total_pnl >= 0 ? '+' : ''}₹{angelOneSummary.total_pnl?.toFixed(2)}
+                                    </p>
+                                    <p className={`text-xs ${angelOneSummary.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {angelOneSummary.total_pnl_percent?.toFixed(2)}%
+                                    </p>
+                                </div>
+                                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+                                    <p className="text-sm text-purple-600 font-medium">Holdings</p>
+                                    <p className="text-xl font-bold text-purple-800">{angelOneHoldings.length}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Holdings Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {angelOneHoldings.map((holding, idx) => (
+                                <div key={idx} className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5 hover:shadow-xl transition-shadow">
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-lg">{holding.name || holding.symbol}</h4>
+                                            <p className="text-xs text-slate-500 font-medium">{holding.symbol} · {holding.exchange}</p>
+                                        </div>
+                                        <span className={`text-sm font-bold px-2 py-1 rounded-lg ${holding.pnl >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {holding.pnl >= 0 ? '+' : ''}{holding.pnlPercent?.toFixed(2)}%
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div>
+                                            <p className="text-slate-500">Current Price</p>
+                                            <p className="font-semibold text-slate-800">₹{holding.currentPrice?.toFixed(2)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-500">Avg Price</p>
+                                            <p className="font-semibold text-slate-800">₹{holding.averagePrice?.toFixed(2)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-500">Qty</p>
+                                            <p className="font-semibold text-slate-800">{holding.quantity}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-500">P&L</p>
+                                            <p className={`font-semibold ${holding.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {holding.pnl >= 0 ? '+' : ''}₹{holding.pnl?.toFixed(2)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
         </div>
