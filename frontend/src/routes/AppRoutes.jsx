@@ -18,6 +18,7 @@ import LearnPage from "../pages/LearnPage";
 import FinancePage from "../pages/FinancePage";
 import { useAuth } from "../context/AuthContext";
 import { setUserData } from "../redux/slices/userDataSlice";
+import GlobalErrorBoundary from "../components/GlobalErrorBoundary";
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -94,7 +95,9 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <GlobalErrorBoundary>
+                <DashboardPage />
+              </GlobalErrorBoundary>
             </ProtectedRoute>
           }
         />
