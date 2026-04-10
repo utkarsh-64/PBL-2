@@ -26,6 +26,9 @@ const AngelOneCallback = () => {
         
         setStatus('success');
         
+        // Mark as connected so Profile page status dot turns green
+        sessionStorage.setItem('angelone_connected', 'true');
+        
         // Redirect to profile page after 2 seconds
         setTimeout(() => {
           navigate('/home/profile', { replace: true });
