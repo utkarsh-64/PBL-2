@@ -510,24 +510,27 @@ export default function ProfilePage() {
             )}
           </div>
           
-          {/* Angel One Integration Card */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 opacity-80 hover:opacity-100 transition-opacity">
+          {/* Angel One */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-[#FF6B00] rounded-lg flex items-center justify-center">
+                <div className={`w-10 h-10 ${angelOneConnected ? 'bg-green-600' : 'bg-[#FF6B00]'} rounded-lg flex items-center justify-center`}>
                   <ExternalLink className="w-5 h-5 text-white" />
                 </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h4 className="font-medium text-slate-900">Angel One</h4>
-                      <div className={`w-2 h-2 rounded-full ${angelOneConnected ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                      {angelOneConnected && <span className="text-xs text-green-600 font-medium">Connected</span>}
-                    </div>
-                    <p className="text-sm text-slate-600">{angelOneConnected ? 'Account linked successfully' : 'Connect your trading account'}</p>
-                  </div>
-              </div>
-                {!angelOneConnected ? (
+                <div>
                   <div className="flex items-center space-x-2">
+                    <h4 className="font-medium text-slate-900">Angel One</h4>
+                    <div className={`w-2 h-2 rounded-full ${angelOneConnected ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+                    {angelOneConnected && <span className="text-xs text-green-600 font-medium">Connected</span>}
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    {angelOneConnected ? 'Account linked successfully' : 'Connect your trading account'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                {!angelOneConnected ? (
+                  <>
                     <input
                       type="text"
                       placeholder="Client ID"
@@ -539,7 +542,7 @@ export default function ProfilePage() {
                     >
                       Connect
                     </button>
-                  </div>
+                  </>
                 ) : (
                   <button
                     onClick={() => { sessionStorage.removeItem('angelone_connected'); setAngelOneConnected(false); }}
@@ -548,6 +551,7 @@ export default function ProfilePage() {
                     Disconnect
                   </button>
                 )}
+              </div>
             </div>
           </div>
 
